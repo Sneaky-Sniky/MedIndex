@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "title": "MedIndex",
+    "description": "Informații despre medicamente din surse oficiale ANMDM."
+  },
+  "nav": {
+    "home": "Acasă",
+    "search": "Căutare",
+    "forum": "Forum",
+    "interactions": "Interacțiuni",
+    "notifications": "Notificări",
+    "login": "Autentificare",
+    "logout": "Deconectare",
+    "admin": "Administrare"
+  },
+  "home": {
+    "title": "MedIndex",
+    "subtitle": "Nomenclator și informații despre medicamente, cu respectarea surselor oficiale.",
+    "ctaSearch": "Caută medicamente"
+  },
+  "disclaimer": {
+    "short": "Informațiile sunt doar în scop educativ. Consultați medicul sau farmacistul! Rezultatele generate de IA pot fi inexacte.",
+    "ai": "Răspuns generat automat din documentația oficială. Informațiile sunt doar în scop educativ. Consultați medicul sau farmacistul! IA poate produce erori."
+  },
+  "search": {
+    "title": "Căutare medicamente",
+    "placeholder": "Denumire, DCI, cod ATC sau CIM…",
+    "submit": "Caută",
+    "empty": "Introduceți un termen de căutare.",
+    "noResults": "Niciun rezultat.",
+    "error": "Eroare la căutare."
+  },
+  "medicine": {
+    "title": "Fișă medicament",
+    "atc": "Cod ATC",
+    "dci": "DCI",
+    "form": "Formă farmaceutică",
+    "holder": "Deținător APP",
+    "rcp": "RCP (PDF)",
+    "prospect": "Prospect (PDF)",
+    "substitutes": "Alternative cu același cod ATC",
+    "noSubstitutes": "Nu s-au găsit alternative în baza de date.",
+    "notFound": "Medicamentul nu a fost găsit.",
+    "basketAdd": "Adaugă la verificare interacțiuni",
+    "basketRemove": "Elimină din coș",
+    "summarize": "Rezumat prospect (IA)",
+    "reviews": "Recenzii",
+    "reportError": "Raportează o eroare"
+  },
+  "ai": {
+    "chatTitle": "Întreabă (IA)",
+    "chatPlaceholder": "Întrebare despre acest medicament…",
+    "send": "Trimite",
+    "interactionsTitle": "Verificare interacțiuni (IA)",
+    "interactionsHint": "Adăugați medicamente din fișă, apoi analizați.",
+    "analyze": "Analizează",
+    "emptyBasket": "Coșul este gol. Adăugați medicamente din fișe."
+  },
+  "auth": {
+    "title": "Autentificare",
+    "email": "E-mail",
+    "magicLink": "Trimite link magic",
+    "sent": "Verificați e-mailul pentru linkul de autentificare.",
+    "error": "Autentificare eșuată."
+  },
+  "forum": {
+    "title": "Forum",
+    "newThread": "Subiect nou",
+    "titleLabel": "Titlu",
+    "create": "Creează",
+    "loginToPost": "Autentificați-vă pentru a posta.",
+    "noThreads": "Nu există subiecte."
+  },
+  "admin": {
+    "title": "Panou administrare",
+    "sync": "Rulează sincronizare ANM",
+    "reports": "Raportări",
+    "denied": "Acces interzis."
+  },
+  "notifications": {
+    "title": "Notificări",
+    "emailRecalls": "E-mail la retrageri / alertă",
+    "pushRecalls": "Notificări push",
+    "save": "Salvează"
+  },
+  "errors": {
+    "generic": "A apărut o eroare."
+  }
+}

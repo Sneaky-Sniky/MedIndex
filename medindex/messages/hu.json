@@ -1,0 +1,89 @@
+{
+  "meta": {
+    "title": "MedIndex",
+    "description": "Hivatalos ANMDM forrásokból származó gyógyszerinformációk."
+  },
+  "nav": {
+    "home": "Kezdőlap",
+    "search": "Keresés",
+    "forum": "Fórum",
+    "interactions": "Kölcsönhatások",
+    "notifications": "Értesítések",
+    "login": "Bejelentkezés",
+    "logout": "Kijelentkezés",
+    "admin": "Adminisztráció"
+  },
+  "home": {
+    "title": "MedIndex",
+    "subtitle": "Gyógyszerjegyzék és információk hivatalos források alapján.",
+    "ctaSearch": "Gyógyszerek keresése"
+  },
+  "disclaimer": {
+    "short": "Az információk csak tájékoztató jellegűek. Forduljon orvosához vagy gyógyszerészéhez! A mesterséges intelligencia pontatlan lehet.",
+    "ai": "Automatikusan generált válasz a hivatalos dokumentáció alapján. Az információk csak tájékoztató jellegűek. Forduljon orvosához vagy gyógyszerészéhez! Az MI tévedhet."
+  },
+  "search": {
+    "title": "Gyógyszerkeresés",
+    "placeholder": "Kereskedelmi név, INN, ATC vagy CIM kód…",
+    "submit": "Keresés",
+    "empty": "Adjon meg keresőkifejezést.",
+    "noResults": "Nincs találat.",
+    "error": "Keresési hiba."
+  },
+  "medicine": {
+    "title": "Gyógyszerlap",
+    "atc": "ATC kód",
+    "dci": "INN (DCI)",
+    "form": "Gyógyszerforma",
+    "holder": "Forgalmazó / APP",
+    "rcp": "RCP (PDF)",
+    "prospect": "Betegtájékoztató (PDF)",
+    "substitutes": "Azonos ATC kódú alternatívák",
+    "noSubstitutes": "Nincsenek alternatívák az adatbázisban.",
+    "notFound": "A gyógyszer nem található.",
+    "basketAdd": "Hozzáadás kölcsönhatás-ellenőrzéshez",
+    "basketRemove": "Eltávolítás a kosárból",
+    "summarize": "Összefoglaló (MI)",
+    "reviews": "Értékelések",
+    "reportError": "Hiba bejelentése"
+  },
+  "ai": {
+    "chatTitle": "Kérdés (MI)",
+    "chatPlaceholder": "Kérdés erről a gyógyszerről…",
+    "send": "Küldés",
+    "interactionsTitle": "Kölcsönhatások (MI)",
+    "interactionsHint": "Adjon hozzá gyógyszereket a lapon, majd elemezzen.",
+    "analyze": "Elemzés",
+    "emptyBasket": "A kosár üres. Adjon hozzá gyógyszereket a lapokról."
+  },
+  "auth": {
+    "title": "Bejelentkezés",
+    "email": "E-mail",
+    "magicLink": "Varázslink küldése",
+    "sent": "Ellenőrizze az e-mailjét a bejelentkezési linkért.",
+    "error": "Sikertelen bejelentkezés."
+  },
+  "forum": {
+    "title": "Fórum",
+    "newThread": "Új téma",
+    "titleLabel": "Cím",
+    "create": "Létrehozás",
+    "loginToPost": "Jelentkezzen be a posztoláshoz.",
+    "noThreads": "Nincsenek témák."
+  },
+  "admin": {
+    "title": "Adminisztrációs panel",
+    "sync": "ANM szinkron futtatása",
+    "reports": "Bejelentések",
+    "denied": "Hozzáférés megtagadva."
+  },
+  "notifications": {
+    "title": "Értesítések",
+    "emailRecalls": "E-mail visszahívásokról / figyelmeztetésekről",
+    "pushRecalls": "Push értesítések",
+    "save": "Mentés"
+  },
+  "errors": {
+    "generic": "Hiba történt."
+  }
+}
