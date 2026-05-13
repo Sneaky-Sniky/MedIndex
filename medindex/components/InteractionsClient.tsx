@@ -57,7 +57,7 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-zinc-600">{t("interactionsHint")}</p>
-      {cims.length < 2 ? (
+      {cims.length === 0 ? (
         <p className="text-sm text-amber-800">{t("emptyBasket")}</p>
       ) : (
         <>
@@ -66,14 +66,18 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
               <li key={c}>{c}</li>
             ))}
           </ul>
-          <button
-            type="button"
-            disabled={loading}
-            onClick={() => void analyze()}
-            className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
-          >
-            {loading ? "…" : t("analyze")}
-          </button>
+          {cims.length < 2 ? (
+            <p className="text-sm text-amber-800">{t("interactionsNeedTwo")}</p>
+          ) : (
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void analyze()}
+              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+            >
+              {loading ? "…" : t("analyze")}
+            </button>
+          )}
         </>
       )}
       {out !== null ? (

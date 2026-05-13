@@ -54,7 +54,8 @@
     "interactionsTitle": "Verificare interacțiuni (IA)",
     "interactionsHint": "Adăugați medicamente din fișă, apoi analizați.",
     "analyze": "Analizează",
-    "emptyBasket": "Coșul este gol. Adăugați medicamente din fișe."
+    "emptyBasket": "Coșul este gol. Adăugați medicamente din fișe.",
+    "interactionsNeedTwo": "Adăugați cel puțin încă un medicament în coș pentru analiza interacțiunilor."
   },
   "auth": {
     "title": "Autentificare",

@@ -54,7 +54,8 @@
     "interactionsTitle": "Kölcsönhatások (MI)",
     "interactionsHint": "Adjon hozzá gyógyszereket a lapon, majd elemezzen.",
     "analyze": "Elemzés",
-    "emptyBasket": "A kosár üres. Adjon hozzá gyógyszereket a lapokról."
+    "emptyBasket": "A kosár üres. Adjon hozzá gyógyszereket a lapokról.",
+    "interactionsNeedTwo": "Legalább még egy gyógyszert adjon a kosárhoz a kölcsönhatások elemzéséhez."
   },
   "auth": {
     "title": "Bejelentkezés",
