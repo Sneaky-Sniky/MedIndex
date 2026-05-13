@@ -7,7 +7,7 @@ import {
 } from "@/lib/ingest/anm";
 import type { AnmMedicineRow } from "@/lib/ingest/types";
 import { leafletsBucket, syncLeafletsForMedicine } from "@/lib/ingest/process-leaflets";
-import { env } from "@/lib/env";
+import { anmIngestEnv } from "@/lib/env";
 
 const INGEST_KEY = "anm_sync";
 
@@ -45,7 +45,7 @@ export async function runAnmIngest(admin: SupabaseClient): Promise<{
   upserted: number;
   leaflets: { docs: number; chunks: number };
 }> {
-  const e = env();
+  const e = anmIngestEnv();
   const maxPages = e.ANM_SYNC_MAX_PAGES;
   const maxLeafletsPerMedicine = 2;
   const maxMedicinesLeafletsPerPage = Number(

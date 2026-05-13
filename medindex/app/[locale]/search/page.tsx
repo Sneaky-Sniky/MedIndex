@@ -29,6 +29,9 @@ export default async function SearchPage({ params, searchParams }: Props) {
       q: q.trim(),
       lim: 40,
     });
+    if (error) {
+      console.error("search_medicines RPC:", error.message, error);
+    }
     if (!error && data) {
       rows = data as typeof rows;
     }
