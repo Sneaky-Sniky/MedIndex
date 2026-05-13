@@ -179,11 +179,11 @@ $$ language plpgsql;
 
 create trigger medicines_updated_at
   before update on public.medicines
-  for each row execute function public.set_updated_at;
+  for each row execute function public.set_updated_at();
 
 create trigger medicine_documents_updated_at
   before update on public.medicine_documents
-  for each row execute function public.set_updated_at;
+  for each row execute function public.set_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- auth: new user → profile
@@ -205,7 +205,7 @@ $$ language plpgsql security definer set search_path = public;
 
 create trigger on_auth_user_created
   after insert on auth.users
-  for each row execute function public.handle_new_user
+  for each row execute function public.handle_new_user();
 
 -- ---------------------------------------------------------------------------
 -- hybrid search RPC
