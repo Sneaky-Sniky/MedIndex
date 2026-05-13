@@ -7,6 +7,7 @@ import { MedicineAiPanel } from "@/components/MedicineAiPanel";
 import { ReviewSection } from "@/components/ReviewSection";
 import { ReportErrorForm } from "@/components/ReportErrorForm";
 import { BasketButton } from "@/components/BasketButton";
+import { MedicineSubscriptionSection } from "@/components/MedicineSubscriptionSection";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,8 @@ export default async function MedicinePage({ params }: Props) {
           labelAdd={t("basketAdd")}
           labelRemove={t("basketRemove")}
         />
+
+        <MedicineSubscriptionSection locale={locale} medicineCim={med.cim} slug={slug} />
 
         <MedicineAiPanel locale={locale} medicineCim={med.cim} />
 

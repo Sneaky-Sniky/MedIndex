@@ -43,6 +43,12 @@
     "notFound": "A gyógyszer nem található.",
     "basketAdd": "Hozzáadás kölcsönhatás-ellenőrzéshez",
     "basketRemove": "Eltávolítás a kosárból",
+    "subscribe": "Követés",
+    "unsubscribe": "Követés leállítása",
+    "subscribedLabel": "Követi ezt a gyógyszert.",
+    "subscribeLogin": "Bejelentkezés",
+    "subscribeTeaser": "értesítésekhez és változásokhoz ehhez a gyógyszerhez.",
+    "subscribeTeaserAuthed": "Értesítések és változások ehhez a gyógyszerhez.",
     "summarize": "Összefoglaló (MI)",
     "reviews": "Értékelések",
     "reportError": "Hiba bejelentése"
@@ -80,6 +86,9 @@
   },
   "notifications": {
     "title": "Értesítések",
+    "followedMedicines": "Követett gyógyszerek",
+    "noFollowedMedicines": "Nem követ egyetlen gyógyszert sem.",
+    "unfollow": "Követés leállítása",
     "emailRecalls": "E-mail visszahívásokról / figyelmeztetésekről",
     "pushRecalls": "Push értesítések",
     "save": "Mentés"

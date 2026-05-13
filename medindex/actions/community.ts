@@ -178,3 +178,48 @@ export async function updateNotificationPreferences(
 
   revalidatePath(`/${locale}/account/notifications`);
 }
+
+export async function subscribeToMedicine(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const medicine_cim = String(formData.get("cim") ?? "");
+  const locale = String(formData.get("locale") ?? "ro");
+  const slug = String(formData.get("slug") ?? "");
+  if (!medicine_cim) return;
+
+  const { error } = await supabase.from("medicine_subscriptions").upsert(
+    { user_id: user.id, medicine_cim },
+    { onConflict: "user_id,medicine_cim" },
+  );
+  if (error) return;
+
+  revalidatePath(`/${locale}/medicine/${slug}`);
+  revalidatePath(`/${locale}/account/notifications`);
+}
+
+export async function unsubscribeFromMedicine(formData: FormData): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const medicine_cim = String(formData.get("cim") ?? "");
+  const locale = String(formData.get("locale") ?? "ro");
+  const slug = String(formData.get("slug") ?? "");
+  if (!medicine_cim) return;
+
+  const { error } = await supabase
+    .from("medicine_subscriptions")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("medicine_cim", medicine_cim);
+  if (error) return;
+
+  if (slug) revalidatePath(`/${locale}/medicine/${slug}`);
+  revalidatePath(`/${locale}/account/notifications`);
+}

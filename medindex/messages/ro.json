@@ -43,6 +43,12 @@
     "notFound": "Medicamentul nu a fost găsit.",
     "basketAdd": "Adaugă la verificare interacțiuni",
     "basketRemove": "Elimină din coș",
+    "subscribe": "Urmărește",
+    "unsubscribe": "Nu mai urmări",
+    "subscribedLabel": "Urmăriți acest medicament.",
+    "subscribeLogin": "Autentificare",
+    "subscribeTeaser": "pentru alerte și modificări la acest medicament.",
+    "subscribeTeaserAuthed": "Alerte și modificări la acest medicament.",
     "summarize": "Rezumat prospect (IA)",
     "reviews": "Recenzii",
     "reportError": "Raportează o eroare"
@@ -80,6 +86,9 @@
   },
   "notifications": {
     "title": "Notificări",
+    "followedMedicines": "Medicamente urmărite",
+    "noFollowedMedicines": "Nu urmăriți niciun medicament.",
+    "unfollow": "Oprește urmărirea",
     "emailRecalls": "E-mail la retrageri / alertă",
     "pushRecalls": "Notificări push",
     "save": "Salvează"
