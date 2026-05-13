@@ -23,7 +23,7 @@ export default async function NotificationsPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("title")}</h1>
       <form action={updateNotificationPreferences} className="mt-8 space-y-4">
         <input type="hidden" name="locale" value={locale} />
         <label className="flex items-center gap-2 text-sm">

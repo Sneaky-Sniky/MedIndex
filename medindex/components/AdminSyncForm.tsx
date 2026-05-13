@@ -19,7 +19,7 @@ export function AdminSyncForm() {
         Run ANM sync
       </button>
       {log ? (
-        <pre className="mt-4 max-h-64 overflow-auto rounded bg-zinc-100 p-3 text-xs">
+        <pre className="mt-4 max-h-64 overflow-auto rounded-lg bg-zinc-900 p-3 text-xs text-zinc-100">
           {log}
         </pre>
       ) : null}

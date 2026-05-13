@@ -10,7 +10,7 @@ export default async function LoginPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-lg px-4 py-16">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("title")}</h1>
       <div className="mt-8">
         <LoginForm locale={locale} />
       </div>

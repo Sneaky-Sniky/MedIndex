@@ -61,7 +61,7 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
         <p className="text-sm text-amber-800">{t("emptyBasket")}</p>
       ) : (
         <>
-          <ul className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm">
+          <ul className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900">
             {cims.map((c) => (
               <li key={c}>{c}</li>
             ))}

@@ -18,7 +18,7 @@ export function ForumVoteForm({
         type="submit"
         name="vote"
         value="1"
-        className="rounded border border-zinc-200 px-2 py-0.5 hover:bg-zinc-50"
+        className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
       >
         +1
       </button>
@@ -26,7 +26,7 @@ export function ForumVoteForm({
         type="submit"
         name="vote"
         value="-1"
-        className="rounded border border-zinc-200 px-2 py-0.5 hover:bg-zinc-50"
+        className="rounded border border-zinc-300 bg-white px-2 py-0.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50"
       >
         −1
       </button>

@@ -39,13 +39,13 @@ export default async function SearchPage({ params, searchParams }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("title")}</h1>
       <form className="mt-6 flex gap-2" method="get" action="">
         <input
           name="q"
           defaultValue={q}
           placeholder={t("placeholder")}
-          className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-500"
+          className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none placeholder:text-zinc-400 focus:border-zinc-500 focus:ring-1 focus:ring-zinc-400"
         />
         <button
           type="submit"
@@ -65,10 +65,10 @@ export default async function SearchPage({ params, searchParams }: Props) {
             <li key={r.cim}>
               <Link
                 href={`/medicine/${r.slug}`}
-                className="block px-4 py-3 hover:bg-zinc-50"
+                className="block px-4 py-3 text-zinc-900 hover:bg-zinc-50"
               >
-                <div className="font-medium">{r.den_comerciala}</div>
-                <div className="text-sm text-zinc-500">
+                <div className="font-medium text-zinc-950">{r.den_comerciala}</div>
+                <div className="text-sm text-zinc-600">
                   {[r.dci, r.cod_atc, r.cim].filter(Boolean).join(" · ")}
                 </div>
               </Link>

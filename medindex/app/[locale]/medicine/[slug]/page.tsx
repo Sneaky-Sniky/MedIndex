@@ -40,23 +40,23 @@ export default async function MedicinePage({ params }: Props) {
     <main className="mx-auto max-w-3xl px-4 py-10">
       <article className="space-y-6">
         <header>
-          <h1 className="text-2xl font-semibold">{med.den_comerciala}</h1>
-          <dl className="mt-4 grid gap-2 text-sm text-zinc-600 sm:grid-cols-2">
+          <h1 className="text-2xl font-semibold text-zinc-950">{med.den_comerciala}</h1>
+          <dl className="mt-4 grid gap-2 text-sm text-zinc-700 sm:grid-cols-2">
             <div>
-              <dt className="font-medium text-zinc-800">{t("dci")}</dt>
-              <dd>{med.dci ?? "—"}</dd>
+              <dt className="font-medium text-zinc-900">{t("dci")}</dt>
+              <dd className="text-zinc-800">{med.dci ?? "—"}</dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-800">{t("atc")}</dt>
-              <dd>{med.cod_atc ?? "—"}</dd>
+              <dt className="font-medium text-zinc-900">{t("atc")}</dt>
+              <dd className="text-zinc-800">{med.cod_atc ?? "—"}</dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-800">{t("form")}</dt>
-              <dd>{med.forma_farmaceutica ?? "—"}</dd>
+              <dt className="font-medium text-zinc-900">{t("form")}</dt>
+              <dd className="text-zinc-800">{med.forma_farmaceutica ?? "—"}</dd>
             </div>
             <div>
-              <dt className="font-medium text-zinc-800">{t("holder")}</dt>
-              <dd>{med.firma_tara_detinator ?? "—"}</dd>
+              <dt className="font-medium text-zinc-900">{t("holder")}</dt>
+              <dd className="text-zinc-800">{med.firma_tara_detinator ?? "—"}</dd>
             </div>
           </dl>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
@@ -94,7 +94,7 @@ export default async function MedicinePage({ params }: Props) {
         <MedicineAiPanel locale={locale} medicineCim={med.cim} />
 
         <section>
-          <h2 className="text-lg font-medium">{t("substitutes")}</h2>
+          <h2 className="text-lg font-medium text-zinc-950">{t("substitutes")}</h2>
           {!subs?.length ? (
             <p className="mt-2 text-sm text-zinc-600">{t("noSubstitutes")}</p>
           ) : (
@@ -103,7 +103,7 @@ export default async function MedicinePage({ params }: Props) {
                 <li key={s.cim}>
                   <Link
                     href={`/medicine/${s.slug}`}
-                    className="block px-3 py-2 text-sm hover:bg-zinc-50"
+                    className="block px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
                   >
                     {s.den_comerciala}
                   </Link>

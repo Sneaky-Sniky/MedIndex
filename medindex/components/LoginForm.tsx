@@ -27,13 +27,13 @@ export function LoginForm({ locale }: { locale: string }) {
 
   return (
     <form onSubmit={onSubmit} className="mx-auto max-w-sm space-y-3">
-      <label className="block text-sm">
+      <label className="block text-sm font-medium text-zinc-800">
         {t("email")}
         <input
           name="email"
           type="email"
           required
-          className="mt-1 block w-full rounded border border-zinc-300 px-2 py-1"
+          className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400"
         />
       </label>
       <button

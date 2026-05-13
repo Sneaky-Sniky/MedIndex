@@ -23,12 +23,12 @@ export async function ReviewSection({
 
   return (
     <section>
-      <h2 className="text-lg font-medium">{t("reviews")}</h2>
+      <h2 className="text-lg font-medium text-zinc-950">{t("reviews")}</h2>
       <ul className="mt-2 space-y-2">
         {(reviews ?? []).map((r) => (
           <li
             key={r.id}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 shadow-sm"
           >
             <div className="font-medium">
               {"★".repeat(r.rating)}

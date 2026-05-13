@@ -23,7 +23,7 @@ export default async function AdminPage({ params }: Props) {
   if (prof?.role !== "admin") {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
-        <p>{t("denied")}</p>
+        <p className="text-zinc-800">{t("denied")}</p>
       </main>
     );
   }
@@ -36,19 +36,19 @@ export default async function AdminPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("title")}</h1>
       <section className="mt-8">
-        <h2 className="text-lg font-medium">{t("sync")}</h2>
+        <h2 className="text-lg font-medium text-zinc-950">{t("sync")}</h2>
         <div className="mt-2">
           <AdminSyncForm />
         </div>
       </section>
       <section className="mt-12">
-        <h2 className="text-lg font-medium">{t("reports")}</h2>
-        <ul className="mt-2 divide-y rounded-lg border border-zinc-200 bg-white text-sm">
+        <h2 className="text-lg font-medium text-zinc-950">{t("reports")}</h2>
+        <ul className="mt-2 divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white text-sm shadow-sm">
           {(reports ?? []).map((r) => (
             <li key={r.id} className="px-3 py-2">
-              <div className="font-medium">{r.status}</div>
+              <div className="font-medium text-zinc-900">{r.status}</div>
               <div className="text-zinc-600">{r.message}</div>
               <div className="text-xs text-zinc-400">{r.medicine_cim}</div>
             </li>

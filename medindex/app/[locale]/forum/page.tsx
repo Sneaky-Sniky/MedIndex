@@ -24,24 +24,24 @@ export default async function ForumPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("title")}</h1>
 
       {user ? (
-        <form action={createForumThread} className="mt-8 space-y-2 rounded-lg border border-zinc-200 bg-white p-4">
+        <form action={createForumThread} className="mt-8 space-y-3 rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
           <input type="hidden" name="locale" value={locale} />
-          <label className="block text-sm">
+          <label className="block text-sm font-medium text-zinc-800">
             {t("titleLabel")}
             <input
               name="title"
               required
-              className="mt-1 block w-full rounded border border-zinc-300 px-2 py-1"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400"
             />
           </label>
-          <label className="block text-sm">
+          <label className="block text-sm font-medium text-zinc-800">
             CIM (opțional)
             <input
               name="medicine_cim"
-              className="mt-1 block w-full rounded border border-zinc-300 px-2 py-1"
+              className="mt-1 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400"
             />
           </label>
           <button
@@ -61,7 +61,7 @@ export default async function ForumPage({ params }: Props) {
             <li key={th.id}>
               <Link
                 href={`/forum/${th.id}`}
-                className="block px-4 py-3 hover:bg-zinc-50"
+                className="block px-4 py-3 text-zinc-900 hover:bg-zinc-50"
               >
                 {th.title}
               </Link>

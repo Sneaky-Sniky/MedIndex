@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
+/* Light theme only — do not tie text color to OS dark mode; that caused light-on-light
+   when body used zinc-50 while inherited color was #ededed from :root. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafafa;
+  --foreground: #18181b;
+  color-scheme: light;
 }
 
 @theme inline {
@@ -12,15 +15,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background-color: var(--background);
+  color: var(--foreground);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  min-height: 100%;
+  font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
 }

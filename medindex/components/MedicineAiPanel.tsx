@@ -63,9 +63,9 @@ export function MedicineAiPanel({
   }
 
   return (
-    <div className="space-y-8 rounded-xl border border-zinc-200 bg-white p-4">
+    <div className="space-y-8 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
       <section>
-        <h2 className="text-lg font-medium">{tMed("summarize")}</h2>
+        <h2 className="text-lg font-medium text-zinc-950">{tMed("summarize")}</h2>
         <button
           type="button"
           disabled={sumLoading}
@@ -85,13 +85,13 @@ export function MedicineAiPanel({
       </section>
 
       <section>
-        <h2 className="text-lg font-medium">{tAi("chatTitle")}</h2>
+        <h2 className="text-lg font-medium text-zinc-950">{tAi("chatTitle")}</h2>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder={tAi("chatPlaceholder")}
-            className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-400"
           />
           <button
             type="button"

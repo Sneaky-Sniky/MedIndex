@@ -12,7 +12,7 @@ export default async function InteractionsPage({ params }: Props) {
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold">{t("interactionsTitle")}</h1>
+      <h1 className="text-2xl font-semibold text-zinc-950">{t("interactionsTitle")}</h1>
       <div className="mt-6">
         <InteractionsClient locale={locale as "ro" | "hu"} />
       </div>
