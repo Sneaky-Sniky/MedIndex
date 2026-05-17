@@ -92,21 +92,33 @@ export function MedicineAiPanel({
       ) : null}
       <section>
         <h2 className="text-lg font-medium text-zinc-950">{tMed("summarize")}</h2>
-        <button
-          type="button"
-          disabled={sumLoading}
-          onClick={() => void runSummary()}
-          className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
-        >
-          {sumLoading ? "…" : tMed("summarize")}
-        </button>
+        {summary === null ? (
+          <button
+            type="button"
+            disabled={sumLoading}
+            onClick={() => void runSummary()}
+            className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+          >
+            {sumLoading ? "…" : tMed("summarize")}
+          </button>
+        ) : null}
         {summary !== null ? (
-          <div className="mt-3 space-y-2">
-            <div className="text-sm text-zinc-800">
-              <AiMarkdown text={summary} />
+          <details className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+            <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium text-zinc-900 marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="flex items-center justify-between gap-2">
+                <span>{tMed("summarize")}</span>
+                <span className="text-zinc-400" aria-hidden>
+                  ▾
+                </span>
+              </span>
+            </summary>
+            <div className="space-y-2 border-t border-zinc-200 px-3 py-3">
+              <div className="text-sm text-zinc-800">
+                <AiMarkdown text={summary} />
+              </div>
+              <MedicalDisclaimer variant="ai" />
             </div>
-            <MedicalDisclaimer variant="ai" />
-          </div>
+          </details>
         ) : null}
       </section>
 
