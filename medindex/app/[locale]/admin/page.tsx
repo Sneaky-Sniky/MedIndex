@@ -2,7 +2,10 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminSyncForm } from "@/components/AdminSyncForm";
+import { AdminReportCard } from "@/components/admin/AdminReportCard";
 import { PaginatedTable } from "@/components/PaginatedTable";
+import { getAdminUser } from "@/lib/admin/require-admin";
+import { fetchAdminReports } from "@/lib/admin/fetch-reports";
 import { ADMIN_REPORTS_PAGE_SIZE } from "@/lib/search/constants";
 import { clampPage, pageRange, parsePageParam, totalPages } from "@/lib/pagination";
 
@@ -19,6 +22,7 @@ function adminPath(page: number): string {
 
 export default async function AdminPage({ params, searchParams }: Props) {
   const { locale } = await params;
+  const loc = locale === "hu" ? "hu" : "ro";
   const page = parsePageParam((await searchParams).page);
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "admin" });
@@ -29,12 +33,8 @@ export default async function AdminPage({ params, searchParams }: Props) {
   } = await supabase.auth.getUser();
   if (!user) notFound();
 
-  const { data: prof } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
-  if (prof?.role !== "admin") {
+  const admin = await getAdminUser(supabase);
+  if (!admin) {
     return (
       <main className="mx-auto max-w-lg px-4 py-16">
         <p className="text-zinc-800">{t("denied")}</p>
@@ -51,13 +51,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
   const safePage = clampPage(page, pages);
   const { from, to } = pageRange(safePage, ADMIN_REPORTS_PAGE_SIZE);
 
-  const { data: reports } = await supabase
-    .from("error_reports")
-    .select("id, message, status, created_at, medicine_cim")
-    .order("created_at", { ascending: false })
-    .range(from, to);
-
-  const reportList = reports ?? [];
+  const reportList = await fetchAdminReports(supabase, { from, to });
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -75,7 +69,7 @@ export default async function AdminPage({ params, searchParams }: Props) {
           title={t("reports")}
           countLabel={total > 0 ? t("reportCount", { count: total }) : undefined}
           titleClassName="text-lg font-medium text-zinc-950"
-          listClassName="mt-2 text-sm"
+          listClassName="mt-4"
           pagination={{
             page: safePage,
             totalPages: pages,
@@ -86,13 +80,9 @@ export default async function AdminPage({ params, searchParams }: Props) {
               pageLabel: tPag("pageOf", { page: safePage, total: pages }),
             },
           }}
-          empty={<p className="mt-2 text-sm text-zinc-600">{t("reports")}</p>}
+          empty={<p className="mt-4 text-sm text-zinc-600">{t("reportsEmpty")}</p>}
           renderRow={(r) => (
-            <>
-              <div className="font-medium text-zinc-900">{r.status}</div>
-              <div className="text-zinc-600">{r.message}</div>
-              <div className="text-xs text-zinc-400">{r.medicine_cim}</div>
-            </>
+            <AdminReportCard report={r} locale={loc} showMedicineLink />
           )}
         />
       </section>

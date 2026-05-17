@@ -78,7 +78,9 @@
     "previousQuestions": "{count, plural, one {# întrebare anterioară} few {# întrebări anterioare} other {# întrebări anterioare}}",
     "reviews": "Recenzii",
     "noReviews": "Nicio recenzie încă.",
-    "reportError": "Raportează o eroare"
+    "reportError": "Raportează o eroare",
+    "reportErrorPlaceholder": "Descrieți eroarea observată…",
+    "reportErrorSubmit": "Trimite raportarea"
   },
   "ai": {
     "chatTitle": "Întreabă (IA)",
@@ -140,7 +142,29 @@
     "sync": "Rulează sincronizare ANM",
     "reports": "Raportări",
     "reportCount": "{count, plural, one {# raport} few {# rapoarte} other {# rapoarte}}",
-    "denied": "Acces interzis."
+    "reportsEmpty": "Nicio raportare încă.",
+    "medicineReports": "Raportări (admin)",
+    "medicineReportsHint": "Verifică raportările utilizatorilor și validează cu IA față de prospect/RCP.",
+    "viewMedicine": "Deschide medicamentul",
+    "reportStatus": "Status",
+    "saveStatus": "Salvează status",
+    "validateWithAi": "Verifică cu IA",
+    "validating": "Se analizează…",
+    "aiAssessment": "Evaluare IA",
+    "status": {
+      "open": "Deschis",
+      "reviewing": "În analiză",
+      "resolved": "Rezolvat",
+      "dismissed": "Respins"
+    },
+    "denied": "Acces interzis.",
+    "apiForbidden": "Acces interzis.",
+    "apiOpenAiMissing": "Cheia OPENAI_API_KEY lipsește.",
+    "apiInvalidJson": "Cerere invalidă.",
+    "apiInvalidBody": "Date invalide.",
+    "apiReportNotFound": "Raportarea nu a fost găsită.",
+    "apiSaveFailed": "Nu s-a putut salva evaluarea.",
+    "apiAiFailed": "Evaluarea IA a eșuat. Încercați din nou."
   },
   "notifications": {
     "title": "Notificări",

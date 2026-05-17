@@ -41,8 +41,15 @@ export function MedicineAiPanel({
   const startRequested = useRef(false);
 
   useEffect(() => {
-    setSummary(initialSummary);
-    setIsSummarizing(initialSummarizing && !initialSummary);
+    if (initialSummary) {
+      setSummary(initialSummary);
+      setIsSummarizing(false);
+    } else if (initialSummarizing) {
+      setIsSummarizing(true);
+    } else {
+      setSummary(null);
+      setIsSummarizing(false);
+    }
     startRequested.current = false;
   }, [initialSummary, initialSummarizing, locale, medicineCim]);
 
@@ -65,9 +72,11 @@ export function MedicineAiPanel({
         setIsSummarizing(false);
         return;
       }
-      if (!row.ai_summarizing_at) {
-        setIsSummarizing(false);
+      if (row.ai_summarizing_at) {
+        setIsSummarizing(true);
+        return;
       }
+      setIsSummarizing(false);
     },
     [locale],
   );
@@ -218,10 +227,10 @@ export function MedicineAiPanel({
             <span>{tMed("summarizeInProgress")}</span>
           </div>
         ) : null}
-        {summary !== null ? (
+        {summary !== null || isSummarizing ? (
           <details
             className="mt-3 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50"
-            open={!isSummarizing}
+            open={!isSummarizing || summary !== null}
           >
             <summary className="cursor-pointer px-3 py-2.5 text-sm font-medium text-zinc-900 marker:content-none [&::-webkit-details-marker]:hidden">
               <span className="flex items-center justify-between gap-2">
@@ -233,7 +242,7 @@ export function MedicineAiPanel({
             </summary>
             <div className="space-y-2 border-t border-zinc-200 px-3 py-3">
               <div className="text-sm text-zinc-800">
-                <AiMarkdown text={summary} />
+                {summary !== null ? <AiMarkdown text={summary} /> : null}
               </div>
               <MedicalDisclaimer variant="ai" />
             </div>

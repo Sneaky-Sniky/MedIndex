@@ -78,7 +78,9 @@
     "previousQuestions": "{count, plural, one {# korábbi kérdés} other {# korábbi kérdés}}",
     "reviews": "Értékelések",
     "noReviews": "Még nincs értékelés.",
-    "reportError": "Hiba bejelentése"
+    "reportError": "Hiba bejelentése",
+    "reportErrorPlaceholder": "Írja le az észlelt hibát…",
+    "reportErrorSubmit": "Bejelentés küldése"
   },
   "ai": {
     "chatTitle": "Kérdés (MI)",
@@ -140,7 +142,29 @@
     "sync": "ANM szinkron futtatása",
     "reports": "Bejelentések",
     "reportCount": "{count, plural, one {# bejelentés} other {# bejelentés}}",
-    "denied": "Hozzáférés megtagadva."
+    "reportsEmpty": "Még nincs bejelentés.",
+    "medicineReports": "Bejelentések (admin)",
+    "medicineReportsHint": "Ellenőrizze a felhasználói bejelentéseket, és validálja IA-val a betegtájékoztató/RCP alapján.",
+    "viewMedicine": "Gyógyszer megnyitása",
+    "reportStatus": "Állapot",
+    "saveStatus": "Állapot mentése",
+    "validateWithAi": "Ellenőrzés IA-val",
+    "validating": "Elemzés…",
+    "aiAssessment": "IA értékelés",
+    "status": {
+      "open": "Nyitott",
+      "reviewing": "Ellenőrzés alatt",
+      "resolved": "Megoldva",
+      "dismissed": "Elutasítva"
+    },
+    "denied": "Hozzáférés megtagadva.",
+    "apiForbidden": "Hozzáférés megtagadva.",
+    "apiOpenAiMissing": "Hiányzik az OPENAI_API_KEY.",
+    "apiInvalidJson": "Érvénytelen kérés.",
+    "apiInvalidBody": "Érvénytelen adatok.",
+    "apiReportNotFound": "A bejelentés nem található.",
+    "apiSaveFailed": "Az értékelés mentése sikertelen.",
+    "apiAiFailed": "Az MI értékelés sikertelen. Próbálja újra."
   },
   "notifications": {
     "title": "Értesítések",

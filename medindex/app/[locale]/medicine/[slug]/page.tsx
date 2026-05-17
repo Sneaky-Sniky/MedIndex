@@ -6,6 +6,9 @@ import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import { MedicineAiPanel } from "@/components/MedicineAiPanel";
 import { ReviewSection } from "@/components/ReviewSection";
 import { ReportErrorForm } from "@/components/ReportErrorForm";
+import { AdminMedicineReportsSection } from "@/components/admin/AdminMedicineReportsSection";
+import { getAdminUser } from "@/lib/admin/require-admin";
+import { fetchMedicineReports } from "@/lib/admin/fetch-reports";
 import { BasketButton } from "@/components/BasketButton";
 import { MedicineSubscriptionSection } from "@/components/MedicineSubscriptionSection";
 import { PaginatedTable } from "@/components/PaginatedTable";
@@ -100,6 +103,11 @@ export default async function MedicinePage({ params, searchParams }: Props) {
     locale: row.locale as "ro" | "hu",
     created_at: row.created_at as string,
   }));
+
+  const adminUser = await getAdminUser(supabase);
+  const adminReports = adminUser
+    ? await fetchMedicineReports(supabase, med.cim as string)
+    : [];
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -208,6 +216,13 @@ export default async function MedicinePage({ params, searchParams }: Props) {
           reviewPage={reviewPage}
           subPage={subPage}
         />
+        {adminUser ? (
+          <AdminMedicineReportsSection
+            locale={locale}
+            slug={slug}
+            reports={adminReports}
+          />
+        ) : null}
         <ReportErrorForm locale={locale} medicineCim={med.cim} slug={slug} />
       </article>
     </main>

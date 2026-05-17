@@ -214,15 +214,22 @@ function formatDocumentsListPayload(
   return { cim, document_count: docs.length, documents };
 }
 
+export type LoadMedicineDocsOptions = {
+  /** When false, never run on-demand PDF ingest (avoids wiping cached summaries). */
+  allowOnDemandSync?: boolean;
+};
+
 async function loadMedicineDocs(
   supabase: SupabaseClient,
   cim: string,
   docTypes: string[] | null,
   logFlow?: string,
+  opts?: LoadMedicineDocsOptions,
 ): Promise<MedicineDocumentRow[]> {
   const code = cim.trim();
   let docs = await fetchMedicineDocuments(supabase, code);
-  if (!docs.some(documentHasUsableContent)) {
+  const allowSync = opts?.allowOnDemandSync !== false;
+  if (allowSync && !docs.some(documentHasUsableContent)) {
     try {
       const admin = createAdminClient();
       ({ docs } = await ensureMedicineLeafletsIndexed(admin, code, logFlow));
@@ -306,8 +313,9 @@ async function listMedicineDocuments(
   cim: string,
   docTypes: string[] | null,
   logFlow?: string,
+  loadOpts?: LoadMedicineDocsOptions,
 ): Promise<Record<string, unknown>> {
-  const docs = await loadMedicineDocs(supabase, cim, docTypes, logFlow);
+  const docs = await loadMedicineDocs(supabase, cim, docTypes, logFlow, loadOpts);
   return formatDocumentsListPayload(cim.trim(), docs);
 }
 
@@ -318,9 +326,10 @@ async function attachMedicineLeaflets(
   cim: string,
   docTypes: string[] | null,
   logFlow?: string,
+  loadOpts?: LoadMedicineDocsOptions,
 ): Promise<Record<string, unknown>> {
   const code = cim.trim();
-  const docs = await loadMedicineDocs(supabase, code, docTypes, logFlow);
+  const docs = await loadMedicineDocs(supabase, code, docTypes, logFlow, loadOpts);
   const fileIds = documentFileIds(docs);
 
   if (fileIds.length === 0) {
@@ -359,6 +368,7 @@ export function createMedicineToolRunner(
   supabase: SupabaseClient,
   session: LeafletVectorSession,
   logFlow?: string,
+  loadOpts?: LoadMedicineDocsOptions,
 ) {
   return async function runMedicineTool(
     name: string,
@@ -411,6 +421,7 @@ export function createMedicineToolRunner(
               ? (args.doc_types as string[])
               : null,
             logFlow,
+            loadOpts,
           );
           break;
         case "attach_medicine_leaflets":
@@ -423,6 +434,7 @@ export function createMedicineToolRunner(
               ? (args.doc_types as string[])
               : null,
             logFlow,
+            loadOpts,
           );
           break;
         default:
