@@ -15,7 +15,15 @@
   },
   "home": {
     "title": "MedIndex",
+    "badge": "Hivatalos ANMDM források",
     "subtitle": "Gyógyszerjegyzék és információk hivatalos források alapján.",
+    "featuresTitle": "Fedezze fel",
+    "featureSearchTitle": "Gyógyszerkeresés",
+    "featureSearchDesc": "Kereskedelmi név, INN, ATC vagy CIM kód.",
+    "featureForumTitle": "Fórum",
+    "featureForumDesc": "Közösségi beszélgetések, tapasztalatok és kérdések.",
+    "featureInteractionsTitle": "Kölcsönhatások",
+    "featureInteractionsDesc": "Ellenőrizze a kosárban lévő gyógyszerek kölcsönhatásait.",
     "ctaSearch": "Gyógyszerek keresése"
   },
   "disclaimer": {

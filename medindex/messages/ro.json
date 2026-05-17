@@ -15,7 +15,15 @@
   },
   "home": {
     "title": "MedIndex",
+    "badge": "Surse oficiale ANMDM",
     "subtitle": "Nomenclator și informații despre medicamente, cu respectarea surselor oficiale.",
+    "featuresTitle": "Explorează",
+    "featureSearchTitle": "Căutare medicamente",
+    "featureSearchDesc": "Denumire comercială, DCI, cod ATC sau CIM.",
+    "featureForumTitle": "Forum",
+    "featureForumDesc": "Discuții, experiențe și întrebări în comunitate.",
+    "featureInteractionsTitle": "Interacțiuni",
+    "featureInteractionsDesc": "Verifică interacțiunile între medicamentele din coș.",
     "ctaSearch": "Caută medicamente"
   },
   "disclaimer": {
