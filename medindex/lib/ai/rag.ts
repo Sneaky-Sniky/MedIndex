@@ -4,6 +4,7 @@ import { completeChat, completeChatJson } from "@/lib/ai/openai";
 import type { BilingualSummaries } from "@/lib/ai/summary-cache";
 import {
   documentFileIds,
+  documentTextContext,
   fetchMedicineDocuments,
   type MedicineDocumentRow,
 } from "@/lib/ai/documents";
@@ -46,11 +47,13 @@ export async function ragAnswer(opts: {
   userQuestion: string;
   medicineCim?: string;
   answerLocale: "ro" | "hu";
+  instructions?: string;
 }): Promise<{ answer: string; chunkIds: string[] }> {
+  const instructions = opts.instructions ?? SYSTEM;
   if (!opts.medicineCim) {
     const answer =
       (await completeChat(opts.openai, {
-        instructions: SYSTEM,
+        instructions,
         input: `Language: ${opts.answerLocale}\n\nQuestion: ${opts.userQuestion}`,
         maxOutputTokens: 2048,
       })) || "Nu am putut genera un răspuns.";
@@ -71,7 +74,7 @@ export async function ragAnswer(opts: {
 
   const answer =
     (await completeChat(opts.openai, {
-      instructions: SYSTEM,
+      instructions,
       input: prompt,
       fileIds,
       maxOutputTokens: 2048,

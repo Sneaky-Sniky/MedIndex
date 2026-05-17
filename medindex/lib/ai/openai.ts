@@ -14,6 +14,8 @@ export async function completeChat(
     input: string;
     fileIds?: string[];
     maxOutputTokens?: number;
+    reasoningEffort?: ReasoningEffort;
+    timeoutMs?: number;
   },
 ): Promise<string> {
   const fileIds = opts.fileIds ?? [];
@@ -34,13 +36,16 @@ export async function completeChat(
           },
         ];
 
-  const response = await openai.responses.create({
-    model: OPENAI_CHAT_MODEL,
-    reasoning: { effort: OPENAI_REASONING_EFFORT },
-    instructions: opts.instructions,
-    input,
-    max_output_tokens: opts.maxOutputTokens ?? 2048,
-  });
+  const response = await openai.responses.create(
+    {
+      model: OPENAI_CHAT_MODEL,
+      reasoning: { effort: opts.reasoningEffort ?? OPENAI_REASONING_EFFORT },
+      instructions: opts.instructions,
+      input,
+      max_output_tokens: opts.maxOutputTokens ?? 2048,
+    },
+    opts.timeoutMs ? { signal: AbortSignal.timeout(opts.timeoutMs) } : undefined,
+  );
   return response.output_text?.trim() ?? "";
 }
 

@@ -2,7 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { runForumAiReplyJob } from "@/lib/forum/run-ai-reply";
 
 export async function submitReview(formData: FormData): Promise<void> {
   const supabase = await createClient();
@@ -119,15 +121,31 @@ export async function createForumPost(formData: FormData): Promise<void> {
 
   if (!thread_id || !body) return;
 
-  const { error } = await supabase.from("forum_posts").insert({
-    thread_id,
-    user_id: user.id,
-    body,
-    is_ai_draft: false,
-  });
-  if (error) return;
+  const { data: post, error } = await supabase
+    .from("forum_posts")
+    .insert({
+      thread_id,
+      user_id: user.id,
+      body,
+      is_ai_draft: false,
+    })
+    .select("id")
+    .single();
+  if (error || !post) return;
 
   revalidatePath(`/${locale}/forum/${thread_id}`);
+
+  const answerLocale = locale === "hu" ? "hu" : "ro";
+  after(async () => {
+    const result = await runForumAiReplyJob({
+      threadId: thread_id,
+      triggerPostId: post.id,
+      locale: answerLocale,
+    });
+    if (!result.ok) {
+      console.warn("forum ai reply skipped:", result.reason);
+    }
+  });
 }
 
 export async function voteForumPost(formData: FormData): Promise<void> {
