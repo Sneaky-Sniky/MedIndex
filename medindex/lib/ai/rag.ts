@@ -4,8 +4,8 @@ import { completeChat, completeChatJson } from "@/lib/ai/openai";
 import type { BilingualSummaries } from "@/lib/ai/summary-cache";
 import {
   documentFileIds,
-  documentTextContext,
   fetchMedicineDocuments,
+  type MedicineDocumentRow,
 } from "@/lib/ai/documents";
 
 export {
@@ -130,6 +130,38 @@ export async function summarizeLeafletsBilingual(opts: {
   };
 }
 
+const INTERACTION_INSTRUCTIONS = `You produce a one-shot drug interaction report for a medicine basket — this is NOT a chat.
+Use ONLY the provided official leaflet documents and full excerpts for EVERY medicine listed below and in the attached PDFs.
+Analyze the complete basket together; consider cross-medicine interactions across the full set.
+Describe possible interaction concerns conservatively; use uncertainty language.
+Write in the user's language as indicated.
+Output a structured report in markdown (**section headings**, bullet points).
+Do NOT ask questions, invite follow-ups, greet the user, or add conversational closings (e.g. "let me know", "feel free to ask", "if you have questions").
+Do not give personal medical advice; remind the user to consult a doctor or pharmacist.`;
+
+function medicineInteractionSection(
+  cim: string,
+  docs: MedicineDocumentRow[],
+): string {
+  if (docs.length === 0) {
+    return `Medicine CIM ${cim}:\n(no indexed documents)`;
+  }
+  const blocks = docs.map((d) => {
+    const header = `[${d.doc_type}]`;
+    if (d.extracted_text?.trim()) {
+      const pdfNote = d.openai_file_id?.trim()
+        ? " (full PDF also attached)"
+        : "";
+      return `${header}${pdfNote}\n${d.extracted_text.trim()}`;
+    }
+    if (d.openai_file_id?.trim()) {
+      return `${header}\n(full document text is in the attached PDF for this product)`;
+    }
+    return `${header}\n(no indexed content)`;
+  });
+  return `Medicine CIM ${cim} (${docs.length} document(s)):\n\n${blocks.join("\n\n---\n\n")}`;
+}
+
 export async function interactionAnalysis(opts: {
   openai: OpenAI;
   supabase: SupabaseClient;
@@ -140,27 +172,26 @@ export async function interactionAnalysis(opts: {
   const allFileIds: string[] = [];
 
   for (const cim of opts.medicineCims) {
-    const { fileIds, text } = await medicineContext(opts.supabase, cim);
-    allFileIds.push(...fileIds);
-    if (text) {
-      sections.push(`Medicine ${cim}:\n${text}`);
-    } else if (fileIds.length > 0) {
-      sections.push(`Medicine ${cim}: (see attached PDF files for this product)`);
-    }
+    const docs = await fetchMedicineDocuments(opts.supabase, cim);
+    allFileIds.push(...documentFileIds(docs));
+    sections.push(medicineInteractionSection(cim, docs));
   }
 
-  if (allFileIds.length === 0 && sections.length === 0) {
+  const uniqueFileIds = [...new Set(allFileIds)];
+  const hasContent =
+    uniqueFileIds.length > 0 ||
+    sections.some((s) => !s.includes("(no indexed documents)"));
+
+  if (!hasContent) {
     return opts.locale === "hu" ? NO_DOCS_HU : NO_DOCS_RO;
   }
 
   return (
     (await completeChat(opts.openai, {
-      instructions: `You analyze only the provided official leaflet documents for multiple medicines. Describe possible interaction concerns conservatively; use uncertainty language. Language: ${opts.locale}. Not medical advice.`,
-      input:
-        sections.join("\n\n=====\n\n") ||
-        "Analyze possible interactions between the attached medicine documents.",
-      fileIds: [...new Set(allFileIds)],
-      maxOutputTokens: 2048,
+      instructions: `${INTERACTION_INSTRUCTIONS}\n\nLanguage: ${opts.locale}.`,
+      input: `Medicines in basket (${opts.medicineCims.length}): ${opts.medicineCims.join(", ")}\n\n${sections.join("\n\n=====\n\n")}`,
+      fileIds: uniqueFileIds,
+      maxOutputTokens: 4096,
     })) || "—"
   );
 }

@@ -1,19 +1,86 @@
 export const BASKET_STORAGE_KEY = "medindex_basket_v1";
 
-export function readBasket(): string[] {
-  if (typeof window === "undefined") return [];
+export type BasketInteractions = {
+  cimsKey: string;
+  locale: "ro" | "hu";
+  analysis: string;
+};
+
+type BasketStored = {
+  cims: string[];
+  interactions?: BasketInteractions;
+};
+
+export function basketCimsKey(cims: string[]): string {
+  return [...cims].sort().join("\0");
+}
+
+function parseStored(): BasketStored {
+  if (typeof window === "undefined") return { cims: [] };
   try {
     const raw = localStorage.getItem(BASKET_STORAGE_KEY);
-    const arr = raw ? (JSON.parse(raw) as unknown) : [];
-    return Array.isArray(arr) ? (arr as string[]) : [];
+    if (!raw) return { cims: [] };
+    const parsed = JSON.parse(raw) as unknown;
+    if (Array.isArray(parsed)) {
+      return { cims: parsed as string[] };
+    }
+    if (
+      parsed &&
+      typeof parsed === "object" &&
+      Array.isArray((parsed as BasketStored).cims)
+    ) {
+      return parsed as BasketStored;
+    }
   } catch {
-    return [];
+    /* ignore */
   }
+  return { cims: [] };
+}
+
+function persist(data: BasketStored) {
+  localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(data));
+  window.dispatchEvent(new Event("medindex-basket-changed"));
+}
+
+export function readBasket(): string[] {
+  return parseStored().cims;
+}
+
+export function readBasketInteractions(
+  locale: "ro" | "hu",
+): string | null {
+  const { cims, interactions } = parseStored();
+  if (!interactions) return null;
+  if (interactions.locale !== locale) return null;
+  if (interactions.cimsKey !== basketCimsKey(cims)) return null;
+  return interactions.analysis;
+}
+
+export function saveBasketInteractions(
+  locale: "ro" | "hu",
+  analysis: string,
+) {
+  const { cims } = parseStored();
+  persist({
+    cims,
+    interactions: {
+      cimsKey: basketCimsKey(cims),
+      locale,
+      analysis,
+    },
+  });
 }
 
 export function writeBasket(cims: string[]) {
-  localStorage.setItem(BASKET_STORAGE_KEY, JSON.stringify(cims));
-  window.dispatchEvent(new Event("medindex-basket-changed"));
+  const prev = parseStored();
+  const next: BasketStored = { cims };
+  if (
+    prev.interactions &&
+    prev.interactions.cimsKey === basketCimsKey(cims)
+  ) {
+    next.interactions = prev.interactions;
+  }
+  persist(next);
 }
 
 export function subscribeBasket(onStoreChange: () => void) {

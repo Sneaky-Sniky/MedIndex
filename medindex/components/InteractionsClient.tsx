@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { AiMarkdown } from "@/components/AiMarkdown";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
@@ -8,6 +8,8 @@ import {
   getBasketSnapshot,
   getServerBasketSnapshot,
   readBasket,
+  readBasketInteractions,
+  saveBasketInteractions,
   subscribeBasket,
 } from "@/lib/basket-storage";
 
@@ -32,6 +34,12 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const cached = readBasketInteractions(locale);
+    setOut(cached);
+    if (cached === null) setError(null);
+  }, [basketJson, locale]);
+
   async function analyze() {
     const list = readBasket();
     if (list.length < 2) {
@@ -49,7 +57,9 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
       });
       const data = (await res.json()) as { analysis?: string; error?: string };
       if (!res.ok) throw new Error(data.error ?? t("requestFailed"));
-      setOut(data.analysis ?? "");
+      const analysis = data.analysis ?? "";
+      saveBasketInteractions(locale, analysis);
+      setOut(analysis);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("requestFailed"));
     } finally {
