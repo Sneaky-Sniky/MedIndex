@@ -2,15 +2,20 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type OpenAI from "openai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+  documentFileIds,
   documentHasUsableContent,
   ensureMedicineLeafletsIndexed,
   fetchMedicineDocuments,
   type MedicineDocumentRow,
 } from "@/lib/ai/documents";
+import {
+  attachFilesToLeafletVectorStore,
+  type LeafletVectorSession,
+} from "@/lib/ai/leaflet-vector-store";
+import { getCachedMedicineSummaries } from "@/lib/ai/summary-cache";
 import { isRagLogEnabled, ragLog } from "@/lib/ai/rag-log";
 
 const MAX_SEARCH_RESULTS = 15;
-const MAX_DOC_TEXT_CHARS = 14_000;
 
 export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
   {
@@ -39,7 +44,7 @@ export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
     type: "function",
     name: "get_medicine_info",
     description:
-      "Fetch catalog metadata for one medicine by exact CIM code (denumire comercială, DCI, form, concentration, ATC, prescription type).",
+      "Fetch catalog metadata only for one medicine by exact CIM (denumire comercială, DCI, form, concentration, ATC, prescription type). Does not include AI summary or leaflet text.",
     parameters: {
       type: "object",
       properties: {
@@ -52,9 +57,30 @@ export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
   },
   {
     type: "function",
-    name: "get_medicine_documents",
+    name: "get_medicine_summary",
     description:
-      "Fetch indexed official leaflet text (RCP, prospect, etc.) for a medicine by CIM. Call when you need dosage, contraindications, interactions, or other leaflet facts.",
+      "Fetch the cached short AI summary (dosing, contraindications, adverse reactions) for a medicine by CIM. Separate from full leaflets.",
+    parameters: {
+      type: "object",
+      properties: {
+        cim: { type: "string", description: "Exact medicine CIM code." },
+        locale: {
+          type: ["string", "null"],
+          enum: ["ro", "hu"],
+          description:
+            "Preferred summary language. Null returns both ro and hu when available.",
+        },
+      },
+      required: ["cim", "locale"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
+  {
+    type: "function",
+    name: "list_medicine_documents",
+    description:
+      "List which official leaflets are indexed for a medicine (RCP, prospect, etc.) without loading full text. Use before attach_medicine_leaflets.",
     parameters: {
       type: "object",
       properties: {
@@ -74,11 +100,37 @@ export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
     },
     strict: true,
   },
+  {
+    type: "function",
+    name: "attach_medicine_leaflets",
+    description:
+      "Index official PDF leaflets for a medicine (if needed) and attach them for file search in this conversation. After attaching, query leaflets via file search — do not expect full text in the tool result.",
+    parameters: {
+      type: "object",
+      properties: {
+        cim: { type: "string", description: "Exact medicine CIM code." },
+        doc_types: {
+          type: ["array", "null"],
+          items: {
+            type: "string",
+            enum: ["rcp", "prospect", "ambalaj", "other"],
+          },
+          description: "Optional filter. Null = attach all indexed PDFs for this product.",
+        },
+      },
+      required: ["cim", "doc_types"],
+      additionalProperties: false,
+    },
+    strict: true,
+  },
 ];
 
 const TOOL_INSTRUCTIONS = `You have tools to explore the medicine database and official leaflets on demand.
 - Use search_medicines to find products by name or DCI when the CIM is unknown.
-- Use get_medicine_info for catalog facts; use get_medicine_documents for official leaflet content.
+- Use get_medicine_info for catalog metadata only.
+- Use get_medicine_summary for the short cached overview (dosing / contraindications / adverse reactions).
+- Use list_medicine_documents to see which leaflets exist, then attach_medicine_leaflets to enable file search on PDFs.
+- After attach_medicine_leaflets, use the file_search tool (not raw document dumps) for detailed leaflet facts.
 - Answer ONLY from tool results and any focused-medicine context in the user message. If leaflets lack the fact, say it is not in the indexed excerpts.
 - Do not invent clinical details.`;
 
@@ -120,7 +172,7 @@ export async function formatFocusedMedicinesPrompt(
   if (unique.length === 0) return "";
 
   const lines = [
-    "Focused medicines (prioritize these; use tools to load leaflet text when needed):",
+    "Focused medicines (prioritize these; use tools to load summaries or attach leaflets when needed):",
   ];
   for (const cim of unique) {
     const m = await fetchMedicineBrief(supabase, cim);
@@ -140,12 +192,7 @@ export async function formatFocusedMedicinesPrompt(
   return lines.join("\n");
 }
 
-function truncateText(text: string, max: number): string {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max)}\n… [truncated]`;
-}
-
-function formatDocumentsPayload(
+function formatDocumentsListPayload(
   cim: string,
   docs: MedicineDocumentRow[],
 ): Record<string, unknown> {
@@ -155,16 +202,38 @@ function formatDocumentsPayload(
 
   const documents = docs.map((d) => {
     const text = d.extracted_text?.trim() ?? "";
-    const hasPdf = Boolean(d.openai_file_id?.trim());
     return {
       doc_type: d.doc_type,
       has_extracted_text: Boolean(text),
-      has_pdf_indexed: hasPdf,
-      text: text ? truncateText(text, MAX_DOC_TEXT_CHARS) : null,
+      has_pdf_indexed: Boolean(d.openai_file_id?.trim()),
+      excerpt_chars: text.length,
     };
   });
 
   return { cim, document_count: docs.length, documents };
+}
+
+async function loadMedicineDocs(
+  supabase: SupabaseClient,
+  cim: string,
+  docTypes: string[] | null,
+  logFlow?: string,
+): Promise<MedicineDocumentRow[]> {
+  const code = cim.trim();
+  let docs = await fetchMedicineDocuments(supabase, code);
+  if (!docs.some(documentHasUsableContent)) {
+    try {
+      const admin = createAdminClient();
+      ({ docs } = await ensureMedicineLeafletsIndexed(admin, code, logFlow));
+    } catch {
+      // on-demand sync requires service role
+    }
+  }
+  if (docTypes?.length) {
+    const allowed = new Set(docTypes);
+    docs = docs.filter((d) => allowed.has(d.doc_type));
+  }
+  return docs;
 }
 
 async function searchMedicines(
@@ -204,31 +273,90 @@ async function getMedicineInfo(
   return { found: true, medicine: m };
 }
 
-async function getMedicineDocuments(
+async function getMedicineSummary(
+  supabase: SupabaseClient,
+  cim: string,
+  locale: string | null,
+): Promise<Record<string, unknown>> {
+  const code = cim.trim();
+  const summaries = await getCachedMedicineSummaries(supabase, code);
+  const hasAny = Boolean(summaries.ro || summaries.hu);
+  if (!hasAny) {
+    return {
+      cim: code,
+      found: false,
+      message: "No cached summary. Use attach_medicine_leaflets and file search.",
+    };
+  }
+  if (locale === "ro" || locale === "hu") {
+    const text = summaries[locale];
+    return {
+      cim: code,
+      found: Boolean(text),
+      locale,
+      summary: text ?? null,
+    };
+  }
+  return { cim: code, found: true, summaries };
+}
+
+async function listMedicineDocuments(
   supabase: SupabaseClient,
   cim: string,
   docTypes: string[] | null,
   logFlow?: string,
 ): Promise<Record<string, unknown>> {
+  const docs = await loadMedicineDocs(supabase, cim, docTypes, logFlow);
+  return formatDocumentsListPayload(cim.trim(), docs);
+}
+
+async function attachMedicineLeaflets(
+  openai: OpenAI,
+  supabase: SupabaseClient,
+  session: LeafletVectorSession,
+  cim: string,
+  docTypes: string[] | null,
+  logFlow?: string,
+): Promise<Record<string, unknown>> {
   const code = cim.trim();
-  let docs = await fetchMedicineDocuments(supabase, code);
-  if (!docs.some(documentHasUsableContent)) {
-    try {
-      const admin = createAdminClient();
-      ({ docs } = await ensureMedicineLeafletsIndexed(admin, code, logFlow));
-    } catch {
-      // on-demand sync requires service role
-    }
+  const docs = await loadMedicineDocs(supabase, code, docTypes, logFlow);
+  const fileIds = documentFileIds(docs);
+
+  if (fileIds.length === 0) {
+    return {
+      cim: code,
+      attached: false,
+      ...formatDocumentsListPayload(code, docs),
+      message:
+        "No PDFs indexed for file search. Text-only excerpts may exist but are not attached.",
+    };
   }
-  if (docTypes?.length) {
-    const allowed = new Set(docTypes);
-    docs = docs.filter((d) => allowed.has(d.doc_type));
-  }
-  return formatDocumentsPayload(code, docs);
+
+  const { vectorStoreId, newlyAttached } = await attachFilesToLeafletVectorStore(
+    openai,
+    session,
+    fileIds,
+  );
+
+  return {
+    cim: code,
+    attached: true,
+    vector_store_id: vectorStoreId,
+    newly_attached_count: newlyAttached.length,
+    total_attached_files: session.attachedFileIds.size,
+    documents: docs.map((d) => ({
+      doc_type: d.doc_type,
+      openai_file_id: d.openai_file_id,
+    })),
+    message:
+      "Leaflets attached. Use file_search to query them; do not request full document dumps.",
+  };
 }
 
 export function createMedicineToolRunner(
+  openai: OpenAI,
   supabase: SupabaseClient,
+  session: LeafletVectorSession,
   logFlow?: string,
 ) {
   return async function runMedicineTool(
@@ -265,9 +393,30 @@ export function createMedicineToolRunner(
         case "get_medicine_info":
           payload = await getMedicineInfo(supabase, String(args.cim ?? ""));
           break;
-        case "get_medicine_documents":
-          payload = await getMedicineDocuments(
+        case "get_medicine_summary":
+          payload = await getMedicineSummary(
             supabase,
+            String(args.cim ?? ""),
+            args.locale === "ro" || args.locale === "hu"
+              ? args.locale
+              : null,
+          );
+          break;
+        case "list_medicine_documents":
+          payload = await listMedicineDocuments(
+            supabase,
+            String(args.cim ?? ""),
+            Array.isArray(args.doc_types)
+              ? (args.doc_types as string[])
+              : null,
+            logFlow,
+          );
+          break;
+        case "attach_medicine_leaflets":
+          payload = await attachMedicineLeaflets(
+            openai,
+            supabase,
+            session,
             String(args.cim ?? ""),
             Array.isArray(args.doc_types)
               ? (args.doc_types as string[])

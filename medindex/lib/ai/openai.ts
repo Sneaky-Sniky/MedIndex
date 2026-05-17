@@ -5,6 +5,10 @@ import type {
   ResponseFunctionToolCall,
 } from "openai/resources/responses/responses";
 import type { ReasoningEffort } from "openai/resources/shared";
+import {
+  deleteLeafletVectorStore,
+  type LeafletVectorSession,
+} from "@/lib/ai/leaflet-vector-store";
 import { isRagLogEnabled, ragLog, ragLogResponse } from "@/lib/ai/rag-log";
 
 const MAX_TOOL_ROUNDS = 8;
@@ -13,6 +17,20 @@ function extractFunctionCalls(response: Response): ResponseFunctionToolCall[] {
   return response.output.filter(
     (item): item is ResponseFunctionToolCall => item.type === "function_call",
   );
+}
+
+function toolsWithLeafletSearch(
+  functionTools: OpenAI.Responses.Tool[],
+  session?: LeafletVectorSession | null,
+): OpenAI.Responses.Tool[] {
+  if (!session?.vectorStoreId) return functionTools;
+  return [
+    ...functionTools,
+    {
+      type: "file_search",
+      vector_store_ids: [session.vectorStoreId],
+    },
+  ];
 }
 /** Chat / completion (reasoning). */
 export const OPENAI_CHAT_MODEL =
@@ -90,6 +108,7 @@ export async function completeChatWithTools(
     input: string;
     tools: OpenAI.Responses.Tool[];
     runTool: (name: string, argsJson: string) => Promise<string>;
+    leafletSession?: LeafletVectorSession | null;
     maxOutputTokens?: number;
     reasoningEffort?: ReasoningEffort;
     timeoutMs?: number;
@@ -98,23 +117,27 @@ export async function completeChatWithTools(
   },
 ): Promise<string> {
   const flow = opts.logFlow;
+  const session = opts.leafletSession ?? null;
   const requestOpts = opts.timeoutMs
     ? { signal: AbortSignal.timeout(opts.timeoutMs) }
     : undefined;
-  const base = {
+
+  const buildBase = () => ({
     model: OPENAI_CHAT_MODEL,
     reasoning: { effort: opts.reasoningEffort ?? OPENAI_REASONING_EFFORT },
     instructions: opts.instructions,
-    tools: opts.tools,
+    tools: toolsWithLeafletSearch(opts.tools, session),
     max_output_tokens: opts.maxOutputTokens ?? 2048,
-  };
+  });
 
   if (flow && isRagLogEnabled()) {
+    const base = buildBase();
     ragLog(flow, "tools · request", {
       model: base.model,
-      toolNames: opts.tools
-        .filter((t) => t.type === "function")
-        .map((t) => t.name),
+      toolNames: base.tools.map((t) =>
+        t.type === "function" ? t.name : t.type,
+      ),
+      vectorStoreId: session?.vectorStoreId ?? null,
       maxOutputTokens: base.max_output_tokens,
       maxRounds: opts.maxRounds ?? MAX_TOOL_ROUNDS,
       instructions: opts.instructions,
@@ -123,64 +146,69 @@ export async function completeChatWithTools(
   }
 
   const t0 = performance.now();
-  let response = await openai.responses.create(
-    { ...base, input: opts.input },
-    requestOpts,
-  );
-  if (flow) ragLogResponse(flow, "tools · turn 0", response);
-
-  const maxRounds = opts.maxRounds ?? MAX_TOOL_ROUNDS;
-  for (let round = 0; round < maxRounds; round++) {
-    const calls = extractFunctionCalls(response);
-    if (calls.length === 0) break;
-
-    if (flow && isRagLogEnabled()) {
-      ragLog(flow, `tools · round ${round + 1} · calls`, {
-        count: calls.length,
-        calls: calls.map((c) => ({
-          call_id: c.call_id,
-          name: c.name,
-          arguments: c.arguments,
-        })),
-      });
-    }
-
-    const outputs = await Promise.all(
-      calls.map(async (call) => ({
-        type: "function_call_output" as const,
-        call_id: call.call_id,
-        output: await opts.runTool(call.name, call.arguments),
-      })),
-    );
-
-    if (flow && isRagLogEnabled()) {
-      ragLog(flow, `tools · round ${round + 1} · outputs`, {
-        outputs: outputs.map((o) => ({
-          call_id: o.call_id,
-          output: o.output,
-        })),
-      });
-    }
-
-    response = await openai.responses.create(
-      {
-        ...base,
-        previous_response_id: response.id,
-        input: outputs,
-      },
+  try {
+    let response = await openai.responses.create(
+      { ...buildBase(), input: opts.input },
       requestOpts,
     );
-    if (flow) ragLogResponse(flow, `tools · turn ${round + 1}`, response);
-  }
+    if (flow) ragLogResponse(flow, "tools · turn 0", response);
 
-  const answer = response.output_text?.trim() ?? "";
-  if (flow && isRagLogEnabled()) {
-    ragLog(flow, "tools · answer", {
-      ms: Math.round(performance.now() - t0),
-      answer,
-    });
+    const maxRounds = opts.maxRounds ?? MAX_TOOL_ROUNDS;
+    for (let round = 0; round < maxRounds; round++) {
+      const calls = extractFunctionCalls(response);
+      if (calls.length === 0) break;
+
+      if (flow && isRagLogEnabled()) {
+        ragLog(flow, `tools · round ${round + 1} · calls`, {
+          count: calls.length,
+          calls: calls.map((c) => ({
+            call_id: c.call_id,
+            name: c.name,
+            arguments: c.arguments,
+          })),
+        });
+      }
+
+      const outputs = await Promise.all(
+        calls.map(async (call) => ({
+          type: "function_call_output" as const,
+          call_id: call.call_id,
+          output: await opts.runTool(call.name, call.arguments),
+        })),
+      );
+
+      if (flow && isRagLogEnabled()) {
+        ragLog(flow, `tools · round ${round + 1} · outputs`, {
+          vectorStoreId: session?.vectorStoreId ?? null,
+          outputs: outputs.map((o) => ({
+            call_id: o.call_id,
+            output: o.output,
+          })),
+        });
+      }
+
+      response = await openai.responses.create(
+        {
+          ...buildBase(),
+          previous_response_id: response.id,
+          input: outputs,
+        },
+        requestOpts,
+      );
+      if (flow) ragLogResponse(flow, `tools · turn ${round + 1}`, response);
+    }
+
+    const answer = response.output_text?.trim() ?? "";
+    if (flow && isRagLogEnabled()) {
+      ragLog(flow, "tools · answer", {
+        ms: Math.round(performance.now() - t0),
+        answer,
+      });
+    }
+    return answer;
+  } finally {
+    if (session) await deleteLeafletVectorStore(openai, session);
   }
-  return answer;
 }
 
 function parseJsonResponse<T>(response: ParsedResponse<T>): T {

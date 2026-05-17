@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { completeChatWithTools } from "@/lib/ai/openai";
+import { createLeafletVectorSession } from "@/lib/ai/leaflet-vector-store";
 import {
   createMedicineToolRunner,
   formatFocusedMedicinesPrompt,
@@ -48,7 +49,13 @@ export async function generateForumReply(opts: {
     FLOW_FORUM,
     "generateForumReply",
     async () => {
-      const runTool = createMedicineToolRunner(opts.supabase, FLOW_FORUM);
+      const leafletSession = createLeafletVectorSession();
+      const runTool = createMedicineToolRunner(
+        opts.openai,
+        opts.supabase,
+        leafletSession,
+        FLOW_FORUM,
+      );
       const parts = [
         `Language: ${opts.locale}`,
         "",
@@ -76,6 +83,7 @@ export async function generateForumReply(opts: {
         input,
         tools: MEDICINE_RAG_TOOLS,
         runTool,
+        leafletSession,
         maxOutputTokens: 1024,
         reasoningEffort: "low",
         timeoutMs: 90_000,

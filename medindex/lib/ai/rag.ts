@@ -8,6 +8,7 @@ import {
   ensureMedicineLeafletsIndexed,
   fetchMedicineDocuments,
 } from "@/lib/ai/documents";
+import { createLeafletVectorSession } from "@/lib/ai/leaflet-vector-store";
 import {
   createMedicineToolRunner,
   formatFocusedMedicinesPrompt,
@@ -71,7 +72,13 @@ export async function ragAnswer(opts: {
     "ragAnswer",
     async () => {
       const instructions = opts.instructions ?? SYSTEM;
-      const runTool = createMedicineToolRunner(opts.supabase, FLOW_CHAT);
+      const leafletSession = createLeafletVectorSession();
+      const runTool = createMedicineToolRunner(
+        opts.openai,
+        opts.supabase,
+        leafletSession,
+        FLOW_CHAT,
+      );
 
       const parts = [
         `Language: ${opts.answerLocale}`,
@@ -99,6 +106,7 @@ export async function ragAnswer(opts: {
           input,
           tools: MEDICINE_RAG_TOOLS,
           runTool,
+          leafletSession,
           maxOutputTokens: 2048,
           logFlow: FLOW_CHAT,
         })) || "Nu am putut genera un răspuns.";
@@ -210,7 +218,13 @@ export async function interactionAnalysis(opts: {
     FLOW_INTERACTION,
     "interactionAnalysis",
     async () => {
-      const runTool = createMedicineToolRunner(opts.supabase, FLOW_INTERACTION);
+      const leafletSession = createLeafletVectorSession();
+      const runTool = createMedicineToolRunner(
+        opts.openai,
+        opts.supabase,
+        leafletSession,
+        FLOW_INTERACTION,
+      );
       const focus = await formatFocusedMedicinesPrompt(
         opts.supabase,
         opts.medicineCims,
@@ -223,7 +237,7 @@ export async function interactionAnalysis(opts: {
         "",
         focus,
         "",
-        "Load official leaflet excerpts for each basket medicine via tools, then write the interaction report.",
+        "For each basket medicine: attach_medicine_leaflets, then use file search for interaction details before writing the report.",
       ].join("\n");
 
       ragLog(FLOW_INTERACTION, "interactionAnalysis · context", {
@@ -238,6 +252,7 @@ export async function interactionAnalysis(opts: {
           input,
           tools: MEDICINE_RAG_TOOLS,
           runTool,
+          leafletSession,
           maxOutputTokens: 4096,
           logFlow: FLOW_INTERACTION,
         })) || "—"
