@@ -29,13 +29,7 @@ export type ForumThreadContext = {
 export function buildForumReplyQuestion(ctx: ForumThreadContext): string {
   const lines = [`Thread: ${ctx.title}`];
   if (ctx.medicineCim) lines.push(`Medicine CIM: ${ctx.medicineCim}`);
-  if (ctx.posts.length > 1) {
-    lines.push("", "Earlier posts:");
-    for (const p of ctx.posts.slice(0, -1)) {
-      lines.push(`${p.isAi ? "[AI]" : "[User]"}: ${p.body}`);
-    }
-  }
-  lines.push("", "Latest post to answer:", ctx.latestPostBody);
+  lines.push("", "New thread topic to address:", ctx.latestPostBody);
   return lines.join("\n");
 }
 

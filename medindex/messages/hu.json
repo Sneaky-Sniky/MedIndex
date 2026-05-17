@@ -130,6 +130,7 @@
     "replyPlaceholder": "Írja meg válaszát…",
     "post": "Közzététel",
     "noPosts": "Még nincs hozzászólás. Kezdje el a beszélgetést.",
+    "aiReplyPending": "Az MI válasz készül…",
     "aiDraft": "MI-vázlat",
     "upvote": "Hasznos",
     "downvote": "Kevésbé hasznos"

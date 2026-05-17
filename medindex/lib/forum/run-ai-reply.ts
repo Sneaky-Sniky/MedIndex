@@ -1,12 +1,10 @@
 import "server-only";
-import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createOpenAI } from "@/lib/ai/openai";
 import { generateForumReply } from "@/lib/ai/forum-reply";
 
 export type ForumAiReplyParams = {
   threadId: string;
-  triggerPostId: string;
   locale: "ro" | "hu";
 };
 
@@ -23,31 +21,6 @@ export async function runForumAiReplyJob(
     return { ok: false, reason: "admin_client_unavailable" };
   }
 
-  const { data: triggerPost } = await admin
-    .from("forum_posts")
-    .select("id, body, is_ai_draft, thread_id")
-    .eq("id", params.triggerPostId)
-    .maybeSingle();
-
-  if (!triggerPost || triggerPost.thread_id !== params.threadId) {
-    return { ok: false, reason: "trigger_post_missing" };
-  }
-  if (triggerPost.is_ai_draft) {
-    return { ok: false, reason: "trigger_is_ai" };
-  }
-
-  const { data: latest } = await admin
-    .from("forum_posts")
-    .select("id")
-    .eq("thread_id", params.threadId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (latest?.id !== params.triggerPostId) {
-    return { ok: false, reason: "stale_trigger" };
-  }
-
   const { data: thread } = await admin
     .from("forum_threads")
     .select("title, medicine_cim")
@@ -56,14 +29,15 @@ export async function runForumAiReplyJob(
 
   if (!thread) return { ok: false, reason: "thread_missing" };
 
-  const { data: posts } = await admin
+  const { count } = await admin
     .from("forum_posts")
-    .select("body, is_ai_draft")
-    .eq("thread_id", params.threadId)
-    .order("created_at", { ascending: true })
-    .limit(30);
+    .select("id", { count: "exact", head: true })
+    .eq("thread_id", params.threadId);
 
-  const postRows = posts ?? [];
+  if ((count ?? 0) > 0) {
+    return { ok: false, reason: "thread_already_has_posts" };
+  }
+
   let answer: string;
   try {
     answer = await generateForumReply({
@@ -73,8 +47,8 @@ export async function runForumAiReplyJob(
       ctx: {
         title: thread.title,
         medicineCim: thread.medicine_cim,
-        posts: postRows.map((p) => ({ body: p.body, isAi: p.is_ai_draft })),
-        latestPostBody: triggerPost.body,
+        posts: [],
+        latestPostBody: thread.title,
       },
     });
   } catch (e) {
@@ -96,9 +70,6 @@ export async function runForumAiReplyJob(
     console.error("forum_ai_reply insert:", error.message);
     return { ok: false, reason: "insert_failed" };
   }
-
-  revalidatePath(`/${params.locale}/forum/${params.threadId}`);
-  revalidatePath(`/${params.locale}/forum`);
 
   return { ok: true };
 }

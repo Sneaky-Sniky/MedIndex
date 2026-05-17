@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { scheduleForumAiReply } from "@/lib/forum/schedule-ai-reply";
-
+import { ensureForumThreadOpeningReplyScheduled } from "@/lib/forum/schedule-ai-reply";
 export async function submitReview(formData: FormData): Promise<void> {
   const supabase = await createClient();
   const {
@@ -103,6 +102,9 @@ export async function createForumThread(formData: FormData): Promise<void> {
 
   if (error || !thread) return;
 
+  const answerLocale = locale === "hu" ? "hu" : "ro";
+  await ensureForumThreadOpeningReplyScheduled(thread.id, answerLocale);
+
   revalidatePath(`/${locale}/forum`);
   redirect(`/${locale}/forum/${thread.id}`);
 }
@@ -120,26 +122,15 @@ export async function createForumPost(formData: FormData): Promise<void> {
 
   if (!thread_id || !body) return;
 
-  const { data: post, error } = await supabase
-    .from("forum_posts")
-    .insert({
-      thread_id,
-      user_id: user.id,
-      body,
-      is_ai_draft: false,
-    })
-    .select("id")
-    .single();
-  if (error || !post) return;
+  const { error } = await supabase.from("forum_posts").insert({
+    thread_id,
+    user_id: user.id,
+    body,
+    is_ai_draft: false,
+  });
+  if (error) return;
 
   revalidatePath(`/${locale}/forum/${thread_id}`);
-
-  const answerLocale = locale === "hu" ? "hu" : "ro";
-  scheduleForumAiReply({
-    threadId: thread_id,
-    triggerPostId: post.id,
-    locale: answerLocale,
-  });
 }
 
 export async function voteForumPost(formData: FormData): Promise<void> {

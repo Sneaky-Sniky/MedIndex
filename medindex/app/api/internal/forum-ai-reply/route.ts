@@ -2,11 +2,10 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runForumAiReplyJob } from "@/lib/forum/run-ai-reply";
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const bodySchema = z.object({
   threadId: z.string().uuid(),
-  triggerPostId: z.string().uuid(),
   locale: z.enum(["ro", "hu"]),
 });
 

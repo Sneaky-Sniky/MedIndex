@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { ChevronLeftIcon } from "@/components/forum/ForumIcons";
 import { ForumPostList } from "@/components/forum/ForumPostList";
 import { ForumReplyForm } from "@/components/forum/ForumReplyForm";
+import { ForumThreadAiStarter } from "@/components/forum/ForumThreadAiStarter";
 import { ForumLoginPrompt } from "@/components/forum/ForumLoginPrompt";
+import { ensureForumThreadOpeningReplyScheduled } from "@/lib/forum/schedule-ai-reply";
 import { formatForumDateShort } from "@/lib/forum/format";
 import { FORUM_POSTS_PAGE_SIZE } from "@/lib/search/constants";
 import { clampPage, pageRange, parsePageParam, totalPages } from "@/lib/pagination";
@@ -63,6 +65,12 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
     .range(from, to);
 
   const postList = posts ?? [];
+  const answerLocale = locale === "hu" ? "hu" : "ro";
+  let aiReplyPending = false;
+  if (postTotal === 0) {
+    const outcome = await ensureForumThreadOpeningReplyScheduled(threadId, answerLocale);
+    aiReplyPending = outcome === "started" || outcome === "pending";
+  }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -86,12 +94,19 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
         />
       </header>
 
+      <ForumThreadAiStarter
+        threadId={threadId}
+        locale={answerLocale}
+        postCount={postTotal}
+      />
+
       <section className="mt-8">
         <ForumPostList
           posts={postList}
           locale={locale}
           threadId={threadId}
           user={user}
+          aiReplyPending={aiReplyPending}
           pagination={{
             page: safePage,
             totalPages: pages,
@@ -105,6 +120,7 @@ export default async function ForumThreadPage({ params, searchParams }: Props) {
           labels={{
             aiDraft: t("aiDraft"),
             noPosts: t("noPosts"),
+            aiReplyPending: t("aiReplyPending"),
             upvote: t("upvote"),
             downvote: t("downvote"),
           }}

@@ -1,6 +1,8 @@
+import { AiMarkdown } from "@/components/AiMarkdown";
 import { formatForumDate } from "@/lib/forum/format";
 import { ForumVoteForm } from "@/components/ForumVoteForm";
 import { PaginatedTable, type PaginatedTablePagination } from "@/components/PaginatedTable";
+import { Spinner } from "@/components/Spinner";
 import { FORUM_POSTS_PAGE_SIZE } from "@/lib/search/constants";
 
 export type ForumPostRow = {
@@ -19,12 +21,22 @@ type Props = {
   labels: {
     aiDraft: string;
     noPosts: string;
+    aiReplyPending: string;
     upvote: string;
     downvote: string;
   };
+  aiReplyPending?: boolean;
 };
 
-export function ForumPostList({ posts, locale, threadId, user, pagination, labels }: Props) {
+export function ForumPostList({
+  posts,
+  locale,
+  threadId,
+  user,
+  pagination,
+  labels,
+  aiReplyPending = false,
+}: Props) {
   return (
     <PaginatedTable
       items={posts}
@@ -33,9 +45,16 @@ export function ForumPostList({ posts, locale, threadId, user, pagination, label
       variant="stack"
       pagination={pagination}
       empty={
-        <p className="rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-10 text-center text-sm text-zinc-600">
-          {labels.noPosts}
-        </p>
+        aiReplyPending ? (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-10 text-center text-sm text-zinc-600">
+            <Spinner />
+            <p>{labels.aiReplyPending}</p>
+          </div>
+        ) : (
+          <p className="rounded-2xl border border-dashed border-zinc-300 bg-white px-5 py-10 text-center text-sm text-zinc-600">
+            {labels.noPosts}
+          </p>
+        )
       }
       renderRow={(p, index) => {
         const postIndex = (pagination.page - 1) * FORUM_POSTS_PAGE_SIZE + index + 1;
@@ -59,9 +78,15 @@ export function ForumPostList({ posts, locale, threadId, user, pagination, label
                     </span>
                   ) : null}
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
-                  {p.body}
-                </p>
+                {p.is_ai_draft ? (
+                  <div className="mt-2 text-sm leading-relaxed text-zinc-800">
+                    <AiMarkdown text={p.body} />
+                  </div>
+                ) : (
+                  <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
+                    {p.body}
+                  </p>
+                )}
                 {user ? (
                   <ForumVoteForm
                     postId={p.id}

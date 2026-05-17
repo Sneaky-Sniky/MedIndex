@@ -1,6 +1,7 @@
 import "server-only";
 import { after } from "next/server";
 import { headers } from "next/headers";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   runForumAiReplyJob,
   type ForumAiReplyParams,
@@ -43,10 +44,8 @@ async function enqueueViaHttp(params: ForumAiReplyParams): Promise<void> {
   });
 }
 
-/** Run forum AI reply after the user post is saved. */
 export function scheduleForumAiReply(params: ForumAiReplyParams): void {
   if (process.env.NODE_ENV === "development") {
-    console.log("[forum-ai] starting job for post", params.triggerPostId);
     void executeForumAiReply(params);
     return;
   }
@@ -56,4 +55,36 @@ export function scheduleForumAiReply(params: ForumAiReplyParams): void {
   } catch {
     void enqueueViaHttp(params);
   }
+}
+
+/** Schedule the opening AI reply when a new thread has no posts yet. */
+export async function ensureForumThreadOpeningReplyScheduled(
+  threadId: string,
+  locale: "ro" | "hu",
+): Promise<"ready" | "pending" | "started" | "unavailable"> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return "unavailable";
+  }
+
+  const { count } = await admin
+    .from("forum_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("thread_id", threadId);
+
+  if ((count ?? 0) > 0) return "ready";
+
+  const { data: claimed, error } = await admin.rpc("claim_forum_opening_ai_reply", {
+    p_thread_id: threadId,
+  });
+  if (error) {
+    console.error("claim_forum_opening_ai_reply:", error.message);
+    return "unavailable";
+  }
+  if (!claimed) return "pending";
+
+  scheduleForumAiReply({ threadId, locale });
+  return "started";
 }
