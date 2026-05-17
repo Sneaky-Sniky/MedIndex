@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { LocaleSwitcher } from "@/components/LocaleSwitcher";
 import { SignOutButton } from "@/components/SignOutButton";
 
 export async function Header({ locale }: { locale: "ro" | "hu" }) {
@@ -54,6 +55,7 @@ export async function Header({ locale }: { locale: "ro" | "hu" }) {
               {t("admin")}
             </Link>
           ) : null}
+          <LocaleSwitcher />
           {user ? (
             <span className="flex items-center gap-2">
               <span className="max-w-[140px] truncate text-zinc-500">
