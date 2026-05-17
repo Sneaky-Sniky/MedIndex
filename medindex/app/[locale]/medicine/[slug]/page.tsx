@@ -10,7 +10,13 @@ import { BasketButton } from "@/components/BasketButton";
 import { MedicineSubscriptionSection } from "@/components/MedicineSubscriptionSection";
 import { PaginatedTable } from "@/components/PaginatedTable";
 import { SUBSTITUTE_PAGE_SIZE } from "@/lib/search/constants";
-import { pickMedicineSummary } from "@/lib/ai/summary-cache";
+import {
+  ensureMedicineSummaryScheduled,
+} from "@/lib/ai/schedule-medicine-summary";
+import {
+  medicineSummaryInProgress,
+  pickMedicineSummary,
+} from "@/lib/ai/summary-cache";
 import { medicinePath, parseMedicineListParams } from "@/lib/medicine/query";
 import { clampPage, pageRange, totalPages } from "@/lib/pagination";
 
@@ -37,6 +43,20 @@ export default async function MedicinePage({ params, searchParams }: Props) {
     .maybeSingle();
 
   if (error || !med) notFound();
+
+  const initialSummary = pickMedicineSummary(locale, {
+    ro: med.ai_summary_ro as string | null,
+    hu: med.ai_summary_hu as string | null,
+  });
+  let initialSummarizing = medicineSummaryInProgress(
+    med.ai_summarizing_at as string | null,
+  );
+
+  if (!initialSummary && !initialSummarizing) {
+    const outcome = await ensureMedicineSummaryScheduled(med.cim as string);
+    initialSummarizing =
+      outcome === "started" || outcome === "summarizing";
+  }
 
   const codAtc = med.cod_atc as string | null;
   let subs: { cim: string; den_comerciala: string; slug: string }[] = [];
@@ -141,10 +161,8 @@ export default async function MedicinePage({ params, searchParams }: Props) {
         <MedicineAiPanel
           locale={locale}
           medicineCim={med.cim}
-          initialSummary={pickMedicineSummary(locale, {
-            ro: med.ai_summary_ro as string | null,
-            hu: med.ai_summary_hu as string | null,
-          })}
+          initialSummary={initialSummary}
+          initialSummarizing={initialSummarizing}
           initialQa={initialQa}
         />
 

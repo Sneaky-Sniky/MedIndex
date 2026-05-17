@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { aiRouteError, createOpenAI } from "@/lib/ai/openai";
-import { summarizeLeafletsBilingual } from "@/lib/ai/rag";
+import { ensureMedicineSummaryScheduled } from "@/lib/ai/schedule-medicine-summary";
 import {
-  getCachedMedicineSummaries,
+  getMedicineSummaryState,
+  medicineHasCachedSummary,
+  medicineSummaryInProgress,
   pickMedicineSummary,
-  saveMedicineSummaries,
 } from "@/lib/ai/summary-cache";
 
 const bodySchema = z.object({
@@ -15,14 +14,35 @@ const bodySchema = z.object({
   locale: z.enum(["ro", "hu"]).default("ro"),
 });
 
-export async function POST(request: Request) {
-  const openai = createOpenAI();
-  if (!openai) {
-    return NextResponse.json(
-      { error: "OPENAI_API_KEY not configured" },
-      { status: 503 },
-    );
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const medicineCim = searchParams.get("medicineCim")?.trim();
+  const locale = searchParams.get("locale") === "hu" ? "hu" : "ro";
+  if (!medicineCim) {
+    return NextResponse.json({ error: "medicineCim required" }, { status: 400 });
   }
+
+  const supabase = await createClient();
+  try {
+    const { summaries, aiSummarizingAt } = await getMedicineSummaryState(
+      supabase,
+      medicineCim,
+    );
+    const summary = pickMedicineSummary(locale, summaries);
+    if (summary) {
+      return NextResponse.json({ status: "ready", summary });
+    }
+    if (medicineSummaryInProgress(aiSummarizingAt)) {
+      return NextResponse.json({ status: "summarizing" });
+    }
+    return NextResponse.json({ status: "none" });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
   let json: unknown;
   try {
     json = await request.json();
@@ -33,43 +53,46 @@ export async function POST(request: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
-  const supabase = await createClient();
+
   const { medicineCim, locale } = parsed.data;
+  const supabase = await createClient();
+
   try {
-    const cached = await getCachedMedicineSummaries(supabase, medicineCim);
-    const cachedSummary = pickMedicineSummary(locale, cached);
-    if (cachedSummary) {
-      return NextResponse.json({ summary: cachedSummary, cached: true });
-    }
-
-    let admin;
-    try {
-      admin = createAdminClient();
-    } catch {
-      admin = undefined;
-    }
-
-    const summaries = await summarizeLeafletsBilingual({
-      openai,
+    const { summaries, aiSummarizingAt } = await getMedicineSummaryState(
       supabase,
-      admin,
       medicineCim,
-    });
-
-    if (admin) {
-      try {
-        await saveMedicineSummaries(admin, medicineCim, summaries);
-      } catch {
-        // cache optional if update fails
-      }
+    );
+    const summary = pickMedicineSummary(locale, summaries);
+    if (summary) {
+      return NextResponse.json({ status: "ready", summary });
+    }
+    if (medicineSummaryInProgress(aiSummarizingAt)) {
+      return NextResponse.json({ status: "summarizing" });
+    }
+    if (medicineHasCachedSummary(summaries)) {
+      return NextResponse.json({
+        status: "ready",
+        summary: pickMedicineSummary(locale, summaries),
+      });
     }
 
-    return NextResponse.json({
-      summary: pickMedicineSummary(locale, summaries) ?? summaries[locale],
-      cached: false,
-    });
+    const outcome = await ensureMedicineSummaryScheduled(medicineCim);
+    if (outcome === "ready") {
+      const refreshed = await getMedicineSummaryState(supabase, medicineCim);
+      return NextResponse.json({
+        status: "ready",
+        summary: pickMedicineSummary(locale, refreshed.summaries),
+      });
+    }
+    if (outcome === "unavailable") {
+      return NextResponse.json(
+        { error: "Summary unavailable" },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ status: "summarizing" });
   } catch (e) {
-    const { status, error } = aiRouteError(e);
-    return NextResponse.json({ error }, { status });
+    const msg = e instanceof Error ? e.message : "Failed";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
