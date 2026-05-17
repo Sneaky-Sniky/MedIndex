@@ -59,7 +59,7 @@ export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
     type: "function",
     name: "get_medicine_summary",
     description:
-      "Fetch the cached short AI summary (dosing, contraindications, adverse reactions) for a medicine by CIM. Separate from full leaflets.",
+      "Fetch the cached short AI summary (dosing, contraindications, adverse reactions) for a medicine by CIM. If it lacks the detail needed, attach_medicine_leaflets and file_search the original PDFs.",
     parameters: {
       type: "object",
       properties: {
@@ -128,8 +128,9 @@ export const MEDICINE_RAG_TOOLS: OpenAI.Responses.Tool[] = [
 const TOOL_INSTRUCTIONS = `You have tools to explore the medicine database and official leaflets on demand.
 - Use search_medicines to find products by name or DCI when the CIM is unknown.
 - Use get_medicine_info for catalog metadata only.
-- Use get_medicine_summary for the short cached overview (dosing / contraindications / adverse reactions).
-- Use list_medicine_documents to see which leaflets exist, then attach_medicine_leaflets to enable file search on PDFs.
+- Start with get_medicine_summary for a quick overview (dosing / contraindications / adverse reactions).
+- If the summary does not contain the information needed to answer the question, you MUST consult the original official documents: call attach_medicine_leaflets, then use file_search on the attached PDFs (RCP / prospect). Do not stop at the summary alone when it is incomplete.
+- Use list_medicine_documents to see which leaflets exist before attaching if unsure.
 - After attach_medicine_leaflets, use the file_search tool (not raw document dumps) for detailed leaflet facts.
 - Answer ONLY from tool results and any focused-medicine context in the user message. If leaflets lack the fact, say it is not in the indexed excerpts.
 - Do not invent clinical details.`;
