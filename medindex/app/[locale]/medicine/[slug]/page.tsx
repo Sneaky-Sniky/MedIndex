@@ -123,7 +123,15 @@ export default async function MedicinePage({ params, searchParams }: Props) {
 
         <MedicineSubscriptionSection locale={locale} medicineCim={med.cim} slug={slug} />
 
-        <MedicineAiPanel locale={locale} medicineCim={med.cim} />
+        <MedicineAiPanel
+          locale={locale}
+          medicineCim={med.cim}
+          initialSummary={
+            locale === "hu"
+              ? (med.ai_summary_hu as string | null)
+              : (med.ai_summary_ro as string | null)
+          }
+        />
 
         {codAtc ? (
           <PaginatedTable

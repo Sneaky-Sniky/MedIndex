@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createOpenAI, ragAnswer } from "@/lib/ai/rag";
+import { aiRouteError, createOpenAI } from "@/lib/ai/openai";
+import { ragAnswer } from "@/lib/ai/rag";
 
 const bodySchema = z.object({
   question: z.string().min(1).max(2000),
@@ -38,7 +39,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ answer, chunkIds });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Chat failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { status, error } = aiRouteError(e);
+    return NextResponse.json({ error }, { status });
   }
 }

@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createOpenAI, summarizeLeaflets } from "@/lib/ai/rag";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { aiRouteError, createOpenAI } from "@/lib/ai/openai";
+import { summarizeLeafletsBilingual } from "@/lib/ai/rag";
+import {
+  getCachedMedicineSummaries,
+  saveMedicineSummaries,
+} from "@/lib/ai/summary-cache";
 
 const bodySchema = z.object({
   medicineCim: z.string().min(1),
@@ -27,16 +33,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
   const supabase = await createClient();
+  const { medicineCim, locale } = parsed.data;
   try {
-    const summary = await summarizeLeaflets({
+    const cached = await getCachedMedicineSummaries(supabase, medicineCim);
+    if (cached[locale]) {
+      return NextResponse.json({ summary: cached[locale], cached: true });
+    }
+
+    const summaries = await summarizeLeafletsBilingual({
       openai,
       supabase,
-      medicineCim: parsed.data.medicineCim,
-      locale: parsed.data.locale,
+      medicineCim,
     });
-    return NextResponse.json({ summary });
+
+    try {
+      await saveMedicineSummaries(
+        createAdminClient(),
+        medicineCim,
+        summaries,
+      );
+    } catch {
+      // cache optional if service role is not configured
+    }
+
+    return NextResponse.json({
+      summary: summaries[locale],
+      cached: false,
+    });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "Summarize failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    const { status, error } = aiRouteError(e);
+    return NextResponse.json({ error }, { status });
   }
 }

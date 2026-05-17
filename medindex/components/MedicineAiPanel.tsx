@@ -2,26 +2,30 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { AiMarkdown } from "@/components/AiMarkdown";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 
 export function MedicineAiPanel({
   locale,
   medicineCim,
+  initialSummary = null,
 }: {
   locale: "ro" | "hu";
   medicineCim: string;
+  initialSummary?: string | null;
 }) {
   const tAi = useTranslations("ai");
   const tMed = useTranslations("medicine");
-  const [summary, setSummary] = useState<string | null>(null);
+  const [summary, setSummary] = useState<string | null>(initialSummary);
   const [sumLoading, setSumLoading] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function runSummary() {
     setSumLoading(true);
-    setSummary(null);
+    setError(null);
     try {
       const res = await fetch("/api/ai/summarize", {
         method: "POST",
@@ -29,10 +33,10 @@ export function MedicineAiPanel({
         body: JSON.stringify({ medicineCim, locale }),
       });
       const data = (await res.json()) as { summary?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "err");
+      if (!res.ok) throw new Error(data.error ?? tAi("requestFailed"));
       setSummary(data.summary ?? "");
-    } catch {
-      setSummary("—");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tAi("requestFailed"));
     } finally {
       setSumLoading(false);
     }
@@ -42,6 +46,7 @@ export function MedicineAiPanel({
     if (!question.trim()) return;
     setChatLoading(true);
     setAnswer(null);
+    setError(null);
     try {
       const res = await fetch("/api/ai/chat", {
         method: "POST",
@@ -53,10 +58,10 @@ export function MedicineAiPanel({
         }),
       });
       const data = (await res.json()) as { answer?: string; error?: string };
-      if (!res.ok) throw new Error(data.error ?? "err");
+      if (!res.ok) throw new Error(data.error ?? tAi("requestFailed"));
       setAnswer(data.answer ?? "");
-    } catch {
-      setAnswer("—");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : tAi("requestFailed"));
     } finally {
       setChatLoading(false);
     }
@@ -64,6 +69,11 @@ export function MedicineAiPanel({
 
   return (
     <div className="space-y-8 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm">
+      {error ? (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+          {error}
+        </p>
+      ) : null}
       <section>
         <h2 className="text-lg font-medium text-zinc-950">{tMed("summarize")}</h2>
         <button
@@ -76,8 +86,8 @@ export function MedicineAiPanel({
         </button>
         {summary !== null ? (
           <div className="mt-3 space-y-2">
-            <div className="whitespace-pre-wrap text-sm text-zinc-800">
-              {summary}
+            <div className="text-sm text-zinc-800">
+              <AiMarkdown text={summary} />
             </div>
             <MedicalDisclaimer variant="ai" />
           </div>
@@ -104,8 +114,8 @@ export function MedicineAiPanel({
         </div>
         {answer !== null ? (
           <div className="mt-3 space-y-2">
-            <div className="whitespace-pre-wrap text-sm text-zinc-800">
-              {answer}
+            <div className="text-sm text-zinc-800">
+              <AiMarkdown text={answer} />
             </div>
             <MedicalDisclaimer variant="ai" />
           </div>

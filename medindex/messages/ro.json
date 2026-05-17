@@ -86,7 +86,8 @@
     "interactionsHint": "Adăugați medicamente din fișă, apoi analizați.",
     "analyze": "Analizează",
     "emptyBasket": "Coșul este gol. Adăugați medicamente din fișe.",
-    "interactionsNeedTwo": "Adăugați cel puțin încă un medicament în coș pentru analiza interacțiunilor."
+    "interactionsNeedTwo": "Adăugați cel puțin încă un medicament în coș pentru analiza interacțiunilor.",
+    "requestFailed": "Cererea IA a eșuat. Verificați OPENAI_API_KEY în .env.local și reporniți serverul."
   },
   "auth": {
     "title": "Autentificare",

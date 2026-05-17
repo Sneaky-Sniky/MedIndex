@@ -1,52 +1,44 @@
-import OpenAI from "openai";
+import type OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { completeChat, completeChatJson } from "@/lib/ai/openai";
+import type { BilingualSummaries } from "@/lib/ai/summary-cache";
+import {
+  documentFileIds,
+  documentTextContext,
+  fetchMedicineDocuments,
+} from "@/lib/ai/documents";
 
-export function createOpenAI(): OpenAI | null {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return null;
-  return new OpenAI({ apiKey: key });
-}
-
-export function formatVector(vec: number[]): string {
-  return `[${vec.join(",")}]`;
-}
-
-export async function embedText(
-  openai: OpenAI,
-  text: string,
-): Promise<number[]> {
-  const res = await openai.embeddings.create({
-    model: "text-embedding-3-small",
-    dimensions: 1536,
-    input: text,
-  });
-  return res.data[0]!.embedding as number[];
-}
-
-export async function retrieveChunks(
-  supabase: SupabaseClient,
-  queryEmbedding: number[],
-  opts: { medicineCim?: string; k?: number },
-) {
-  const vec = formatVector(queryEmbedding);
-  const { data, error } = await supabase.rpc("match_document_chunks", {
-    query_embedding: vec,
-    match_count: opts.k ?? 8,
-    filter_medicine_cim: opts.medicineCim ?? null,
-  });
-  if (error) throw error;
-  return (data ?? []) as {
-    id: string;
-    medicine_cim: string;
-    content: string;
-    similarity: number;
-  }[];
-}
+export {
+  completeChat,
+  completeChatJson,
+  createOpenAI,
+  isOpenAIConfigured,
+  aiRouteError,
+  OPENAI_CHAT_MODEL,
+  OPENAI_REASONING_EFFORT,
+  uploadPdfToOpenAI,
+} from "@/lib/ai/openai";
 
 const SYSTEM = `You are a medical information assistant for Romania (ANMDM nomenclator context).
-Answer ONLY using the provided excerpt context. If the answer is not in the context, say you do not have that information in the official excerpts.
+Answer ONLY using the provided official leaflet documents or excerpts. If the answer is not in the documents, say you do not have that information in the official excerpts.
 Always answer in the user's language (Romanian or Hungarian) as indicated.
 Never give personal medical advice; remind the user to consult a doctor or pharmacist.`;
+
+const NO_DOCS_RO =
+  "Nu există prospecte indexate pentru acest medicament.";
+const NO_DOCS_HU =
+  "Nincs indexált betegtájékoztató ehhez a gyógyszerhez.";
+
+async function medicineContext(
+  supabase: SupabaseClient,
+  medicineCim: string,
+): Promise<{ fileIds: string[]; text: string }> {
+  const docs = await fetchMedicineDocuments(supabase, medicineCim);
+  return {
+    fileIds: documentFileIds(docs),
+    text: documentTextContext(docs),
+  };
+}
 
 export async function ragAnswer(opts: {
   openai: OpenAI;
@@ -55,66 +47,87 @@ export async function ragAnswer(opts: {
   medicineCim?: string;
   answerLocale: "ro" | "hu";
 }): Promise<{ answer: string; chunkIds: string[] }> {
-  const qEmb = await embedText(opts.openai, opts.userQuestion);
-  const chunks = await retrieveChunks(opts.supabase, qEmb, {
-    medicineCim: opts.medicineCim,
-    k: 10,
-  });
-  const context = chunks.map((c) => `[${c.id}] ${c.content}`).join("\n---\n");
-  const completion = await opts.openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      { role: "system", content: SYSTEM },
-      {
-        role: "user",
-        content: `Language: ${opts.answerLocale}\n\nContext:\n${context}\n\nQuestion: ${opts.userQuestion}`,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 800,
-  });
+  if (!opts.medicineCim) {
+    const answer =
+      (await completeChat(opts.openai, {
+        instructions: SYSTEM,
+        input: `Language: ${opts.answerLocale}\n\nQuestion: ${opts.userQuestion}`,
+        maxOutputTokens: 2048,
+      })) || "Nu am putut genera un răspuns.";
+    return { answer, chunkIds: [] };
+  }
+
+  const { fileIds, text } = await medicineContext(opts.supabase, opts.medicineCim);
+  if (fileIds.length === 0 && !text) {
+    return {
+      answer: opts.answerLocale === "hu" ? NO_DOCS_HU : NO_DOCS_RO,
+      chunkIds: [],
+    };
+  }
+
+  const prompt = `Language: ${opts.answerLocale}\n\nQuestion: ${opts.userQuestion}${
+    text ? `\n\nReference excerpts:\n${text}` : ""
+  }`;
+
   const answer =
-    completion.choices[0]?.message?.content?.trim() ??
-    "Nu am putut genera un răspuns.";
-  return { answer, chunkIds: chunks.map((c) => c.id) };
+    (await completeChat(opts.openai, {
+      instructions: SYSTEM,
+      input: prompt,
+      fileIds,
+      maxOutputTokens: 2048,
+    })) || "Nu am putut genera un răspuns.";
+  return { answer, chunkIds: [] };
 }
 
-export async function summarizeLeaflets(opts: {
+const SUMMARY_JSON_SCHEMA = {
+  type: "object",
+  properties: {
+    ro: {
+      type: "string",
+      description:
+        "Romanian summary in markdown: bullets with - and section labels with **",
+    },
+    hu: {
+      type: "string",
+      description:
+        "Hungarian summary in markdown: bullets with - and section labels with **",
+    },
+  },
+  required: ["ro", "hu"],
+  additionalProperties: false,
+} as const;
+
+const SUMMARY_INSTRUCTIONS = `You write fixed informational summaries for a medicine product page — not a chat.
+Return JSON only with keys "ro" and "hu".
+Each value is a complete summary in that language: bullet points for dosage, contraindications, and adverse effects.
+Use markdown inside each string: "- " for bullets and **Heading** for section labels.
+Use only the attached official documents. If information is missing, write "unknown in excerpts".
+Do not ask questions, suggest follow-ups, or address the reader.`;
+
+export async function summarizeLeafletsBilingual(opts: {
   openai: OpenAI;
   supabase: SupabaseClient;
   medicineCim: string;
-  locale: "ro" | "hu";
-}): Promise<string> {
-  const qEmb = await embedText(
-    opts.openai,
-    "dosage contraindications adverse effects summary patient leaflet",
-  );
-  const chunks = await retrieveChunks(opts.supabase, qEmb, {
-    medicineCim: opts.medicineCim,
-    k: 12,
-  });
-  if (chunks.length === 0) {
-    return opts.locale === "hu"
-      ? "Nincs elérhető szövegrészlet a dokumentumokból."
-      : "Nu există fragmente indexate din prospect pentru acest medicament.";
+}): Promise<BilingualSummaries> {
+  const { fileIds, text } = await medicineContext(opts.supabase, opts.medicineCim);
+  if (fileIds.length === 0 && !text) {
+    return { ro: NO_DOCS_RO, hu: NO_DOCS_HU };
   }
-  const context = chunks.map((c) => c.content).join("\n---\n");
-  const completion = await opts.openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `Extract key bullet points: dosage, contraindications, adverse effects. Language: ${opts.locale}. Only from context. If missing, say "unknown in excerpts".`,
-      },
-      { role: "user", content: context },
-    ],
-    temperature: 0.1,
-    max_tokens: 900,
+
+  const parsed = await completeChatJson<{ ro: string; hu: string }>(opts.openai, {
+    instructions: SUMMARY_INSTRUCTIONS,
+    input:
+      text ||
+      "Summarize the attached official medicine documents (RCP / prospect) in Romanian and Hungarian.",
+    fileIds,
+    maxOutputTokens: 4096,
+    schema: { name: "medicine_summaries", schema: SUMMARY_JSON_SCHEMA },
   });
-  return (
-    completion.choices[0]?.message?.content?.trim() ??
-    "—"
-  );
+
+  return {
+    ro: parsed.ro?.trim() || "—",
+    hu: parsed.hu?.trim() || "—",
+  };
 }
 
 export async function interactionAnalysis(opts: {
@@ -123,28 +136,31 @@ export async function interactionAnalysis(opts: {
   medicineCims: string[];
   locale: "ro" | "hu";
 }): Promise<string> {
-  const all: string[] = [];
+  const sections: string[] = [];
+  const allFileIds: string[] = [];
+
   for (const cim of opts.medicineCims) {
-    const emb = await embedText(opts.openai, `drug interactions contraindications ${cim}`);
-    const chunks = await retrieveChunks(opts.supabase, emb, {
-      medicineCim: cim,
-      k: 6,
-    });
-    all.push(`Medicine ${cim}:\n${chunks.map((c) => c.content).join("\n")}`);
+    const { fileIds, text } = await medicineContext(opts.supabase, cim);
+    allFileIds.push(...fileIds);
+    if (text) {
+      sections.push(`Medicine ${cim}:\n${text}`);
+    } else if (fileIds.length > 0) {
+      sections.push(`Medicine ${cim}: (see attached PDF files for this product)`);
+    }
   }
-  const completion = await opts.openai.chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: `You analyze only the provided official leaflet excerpts for multiple medicines. Describe possible interaction concerns conservatively; use uncertainty language. Language: ${opts.locale}. Not medical advice.`,
-      },
-      { role: "user", content: all.join("\n\n=====\n\n") },
-    ],
-    temperature: 0.1,
-    max_tokens: 1000,
-  });
+
+  if (allFileIds.length === 0 && sections.length === 0) {
+    return opts.locale === "hu" ? NO_DOCS_HU : NO_DOCS_RO;
+  }
+
   return (
-    completion.choices[0]?.message?.content?.trim() ?? "—"
+    (await completeChat(opts.openai, {
+      instructions: `You analyze only the provided official leaflet documents for multiple medicines. Describe possible interaction concerns conservatively; use uncertainty language. Language: ${opts.locale}. Not medical advice.`,
+      input:
+        sections.join("\n\n=====\n\n") ||
+        "Analyze possible interactions between the attached medicine documents.",
+      fileIds: [...new Set(allFileIds)],
+      maxOutputTokens: 2048,
+    })) || "—"
   );
 }

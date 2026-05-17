@@ -86,7 +86,8 @@
     "interactionsHint": "Adjon hozzá gyógyszereket a lapon, majd elemezzen.",
     "analyze": "Elemzés",
     "emptyBasket": "A kosár üres. Adjon hozzá gyógyszereket a lapokról.",
-    "interactionsNeedTwo": "Legalább még egy gyógyszert adjon a kosárhoz a kölcsönhatások elemzéséhez."
+    "interactionsNeedTwo": "Legalább még egy gyógyszert adjon a kosárhoz a kölcsönhatások elemzéséhez.",
+    "requestFailed": "Az MI kérés sikertelen. Ellenőrizze az OPENAI_API_KEY értékét a .env.local fájlban, majd indítsa újra a szervert."
   },
   "auth": {
     "title": "Bejelentkezés",
