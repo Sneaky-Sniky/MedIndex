@@ -132,8 +132,9 @@ const SUMMARY_JSON_SCHEMA = {
 
 const SUMMARY_INSTRUCTIONS = `You write fixed informational summaries for a medicine product page — not a chat.
 Return JSON only with keys "ro" and "hu".
-Each value is a complete summary in that language: bullet points for dosage, contraindications, and adverse effects.
-Use markdown inside each string: "- " for bullets and **Heading** for section labels.
+Each value is a concise summary in that language with exactly three sections: **Dozare**, **Contraindicații**, **Reacții adverse** (translate section headings for "hu").
+Use 2–4 short bullet points per section. Keep each language under 900 characters total.
+Use markdown: "- " for bullets and **Heading** for section labels.
 Use only the attached official documents. If information is missing, write "unknown in excerpts".
 Do not ask questions, suggest follow-ups, or address the reader.`;
 
@@ -173,7 +174,8 @@ export async function summarizeLeafletsBilingual(opts: {
             ? "Summarize the attached official medicine documents (RCP / prospect) in Romanian and Hungarian."
             : text,
           fileIds: usePdfAttachments ? fileIds : undefined,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
+          reasoningEffort: "low",
           schema: { name: "medicine_summaries", schema: SUMMARY_JSON_SCHEMA },
           logFlow: FLOW_SUMMARY,
         },

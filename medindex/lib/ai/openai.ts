@@ -1,5 +1,6 @@
 import OpenAI, { APIError, toFile } from "openai";
 import type {
+  ParsedResponse,
   Response,
   ResponseFunctionToolCall,
 } from "openai/resources/responses/responses";
@@ -182,6 +183,41 @@ export async function completeChatWithTools(
   return answer;
 }
 
+function parseJsonResponse<T>(response: ParsedResponse<T>): T {
+  const fromParsed = response.output_parsed;
+  if (fromParsed != null) return fromParsed as T;
+
+  const raw = response.output_text?.trim();
+  if (!raw) {
+    throw new Error(
+      `Empty structured response (status=${response.status}, incomplete=${JSON.stringify(response.incomplete_details)})`,
+    );
+  }
+  return JSON.parse(raw) as T;
+}
+
+function shouldRetryJsonResponse(response: Response, error: unknown): boolean {
+  if (response.status === "incomplete") return true;
+  if (error instanceof SyntaxError) return true;
+  return false;
+}
+
+function buildFileInput(fileIds: string[], text: string) {
+  return [
+    {
+      type: "message" as const,
+      role: "user" as const,
+      content: [
+        ...fileIds.map((file_id) => ({
+          type: "input_file" as const,
+          file_id,
+        })),
+        { type: "input_text" as const, text },
+      ],
+    },
+  ];
+}
+
 export async function completeChatJson<T>(
   openai: OpenAI,
   opts: {
@@ -189,66 +225,85 @@ export async function completeChatJson<T>(
     input: string;
     fileIds?: string[];
     maxOutputTokens?: number;
+    reasoningEffort?: ReasoningEffort;
     schema: { name: string; schema: Record<string, unknown> };
     logFlow?: string;
   },
 ): Promise<T> {
   const flow = opts.logFlow;
-  if (flow && isRagLogEnabled()) {
-    ragLog(flow, "completeChatJson · request", {
-      model: OPENAI_CHAT_MODEL,
-      schema: opts.schema.name,
-      fileIds: opts.fileIds ?? [],
-      instructions: opts.instructions,
-      input: opts.input,
-    });
-  }
-
   const fileIds = opts.fileIds ?? [];
   const input =
-    fileIds.length === 0
-      ? opts.input
-      : [
-          {
-            type: "message" as const,
-            role: "user" as const,
-            content: [
-              ...fileIds.map((file_id) => ({
-                type: "input_file" as const,
-                file_id,
-              })),
-              { type: "input_text" as const, text: opts.input },
-            ],
+    fileIds.length === 0 ? opts.input : buildFileInput(fileIds, opts.input);
+
+  const baseTokens = opts.maxOutputTokens ?? 2048;
+  const tokenAttempts = [baseTokens, Math.max(baseTokens * 2, 8192)];
+
+  let lastError: unknown;
+  let lastResponse: ParsedResponse<T> | null = null;
+
+  for (let i = 0; i < tokenAttempts.length; i++) {
+    const attempt = i + 1;
+    const maxOutputTokens = tokenAttempts[i]!;
+
+    if (flow && isRagLogEnabled()) {
+      ragLog(flow, "completeChatJson · request", {
+        attempt,
+        model: OPENAI_CHAT_MODEL,
+        schema: opts.schema.name,
+        fileIds,
+        maxOutputTokens,
+        instructions: opts.instructions,
+        input: opts.input,
+      });
+    }
+
+    try {
+      const response = await openai.responses.parse({
+        model: OPENAI_CHAT_MODEL,
+        reasoning: { effort: opts.reasoningEffort ?? OPENAI_REASONING_EFFORT },
+        instructions: opts.instructions,
+        input,
+        max_output_tokens: maxOutputTokens,
+        text: {
+          format: {
+            type: "json_schema",
+            name: opts.schema.name,
+            schema: opts.schema.schema,
+            strict: true,
           },
-        ];
+        },
+      });
+      lastResponse = response;
 
-  const t0 = performance.now();
-  const response = await openai.responses.create({
-    model: OPENAI_CHAT_MODEL,
-    reasoning: { effort: OPENAI_REASONING_EFFORT },
-    instructions: opts.instructions,
-    input,
-    max_output_tokens: opts.maxOutputTokens ?? 2048,
-    text: {
-      format: {
-        type: "json_schema",
-        name: opts.schema.name,
-        schema: opts.schema.schema,
-        strict: true,
-      },
-    },
-  });
+      if (flow && isRagLogEnabled()) {
+        ragLogResponse(flow, `completeChatJson · response (attempt ${attempt})`, response);
+      }
 
-  const raw = response.output_text?.trim() ?? "{}";
-  const parsed = JSON.parse(raw) as T;
-  if (flow && isRagLogEnabled()) {
-    ragLogResponse(flow, "completeChatJson · response", response);
-    ragLog(flow, "completeChatJson · parsed", {
-      ms: Math.round(performance.now() - t0),
-      parsed,
-    });
+      const parsed = parseJsonResponse<T>(response);
+      if (flow && isRagLogEnabled()) {
+        ragLog(flow, "completeChatJson · parsed", { attempt, parsed });
+      }
+      return parsed;
+    } catch (error) {
+      lastError = error;
+      const retry =
+        lastResponse &&
+        i < tokenAttempts.length - 1 &&
+        shouldRetryJsonResponse(lastResponse, error);
+      if (flow && isRagLogEnabled()) {
+        ragLog(flow, "completeChatJson · retry", {
+          attempt,
+          willRetry: retry,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+      if (!retry) break;
+    }
   }
-  return parsed;
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(String(lastError ?? "Structured response failed"));
 }
 
 export async function uploadPdfToOpenAI(
