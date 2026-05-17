@@ -40,20 +40,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ summary: cached[locale], cached: true });
     }
 
+    let admin;
+    try {
+      admin = createAdminClient();
+    } catch {
+      admin = undefined;
+    }
+
     const summaries = await summarizeLeafletsBilingual({
       openai,
       supabase,
+      admin,
       medicineCim,
     });
 
-    try {
-      await saveMedicineSummaries(
-        createAdminClient(),
-        medicineCim,
-        summaries,
-      );
-    } catch {
-      // cache optional if service role is not configured
+    if (admin) {
+      try {
+        await saveMedicineSummaries(admin, medicineCim, summaries);
+      } catch {
+        // cache optional if update fails
+      }
     }
 
     return NextResponse.json({

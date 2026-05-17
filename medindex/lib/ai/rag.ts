@@ -1,17 +1,29 @@
 import type OpenAI from "openai";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { completeChat, completeChatJson } from "@/lib/ai/openai";
+import { completeChatJson, completeChatWithTools } from "@/lib/ai/openai";
 import type { BilingualSummaries } from "@/lib/ai/summary-cache";
 import {
   documentFileIds,
   documentTextContext,
+  ensureMedicineLeafletsIndexed,
   fetchMedicineDocuments,
-  type MedicineDocumentRow,
 } from "@/lib/ai/documents";
+import {
+  createMedicineToolRunner,
+  formatFocusedMedicinesPrompt,
+  MEDICINE_RAG_TOOLS,
+  medicineRagInstructions,
+} from "@/lib/ai/medicine-tools";
+import { ragLog, ragLogTimed } from "@/lib/ai/rag-log";
+
+const FLOW_CHAT = "rag.chat";
+const FLOW_SUMMARY = "rag.summary";
+const FLOW_INTERACTION = "rag.interaction";
 
 export {
   completeChat,
   completeChatJson,
+  completeChatWithTools,
   createOpenAI,
   isOpenAIConfigured,
   aiRouteError,
@@ -20,10 +32,11 @@ export {
   uploadPdfToOpenAI,
 } from "@/lib/ai/openai";
 
-const SYSTEM = `You are a medical information assistant for Romania (ANMDM nomenclator context).
-Answer ONLY using the provided official leaflet documents or excerpts. If the answer is not in the documents, say you do not have that information in the official excerpts.
+const SYSTEM = medicineRagInstructions(
+  `You are a medical information assistant for Romania (ANMDM nomenclator context).
 Always answer in the user's language (Romanian or Hungarian) as indicated.
-Never give personal medical advice; remind the user to consult a doctor or pharmacist.`;
+Never give personal medical advice; remind the user to consult a doctor or pharmacist.`,
+);
 
 const NO_DOCS_RO =
   "Nu există prospecte indexate pentru acest medicament.";
@@ -33,8 +46,12 @@ const NO_DOCS_HU =
 async function medicineContext(
   supabase: SupabaseClient,
   medicineCim: string,
+  admin?: SupabaseClient,
+  logFlow?: string,
 ): Promise<{ fileIds: string[]; text: string }> {
-  const docs = await fetchMedicineDocuments(supabase, medicineCim);
+  const docs = admin
+    ? (await ensureMedicineLeafletsIndexed(admin, medicineCim, logFlow)).docs
+    : await fetchMedicineDocuments(supabase, medicineCim);
   return {
     fileIds: documentFileIds(docs),
     text: documentTextContext(docs),
@@ -49,37 +66,50 @@ export async function ragAnswer(opts: {
   answerLocale: "ro" | "hu";
   instructions?: string;
 }): Promise<{ answer: string; chunkIds: string[] }> {
-  const instructions = opts.instructions ?? SYSTEM;
-  if (!opts.medicineCim) {
-    const answer =
-      (await completeChat(opts.openai, {
-        instructions,
-        input: `Language: ${opts.answerLocale}\n\nQuestion: ${opts.userQuestion}`,
-        maxOutputTokens: 2048,
-      })) || "Nu am putut genera un răspuns.";
-    return { answer, chunkIds: [] };
-  }
+  return ragLogTimed(
+    FLOW_CHAT,
+    "ragAnswer",
+    async () => {
+      const instructions = opts.instructions ?? SYSTEM;
+      const runTool = createMedicineToolRunner(opts.supabase, FLOW_CHAT);
 
-  const { fileIds, text } = await medicineContext(opts.supabase, opts.medicineCim);
-  if (fileIds.length === 0 && !text) {
-    return {
-      answer: opts.answerLocale === "hu" ? NO_DOCS_HU : NO_DOCS_RO,
-      chunkIds: [],
-    };
-  }
+      const parts = [
+        `Language: ${opts.answerLocale}`,
+        "",
+        `Question: ${opts.userQuestion}`,
+      ];
 
-  const prompt = `Language: ${opts.answerLocale}\n\nQuestion: ${opts.userQuestion}${
-    text ? `\n\nReference excerpts:\n${text}` : ""
-  }`;
+      if (opts.medicineCim) {
+        const focus = await formatFocusedMedicinesPrompt(opts.supabase, [
+          opts.medicineCim,
+        ]);
+        if (focus) parts.push("", focus);
+      }
 
-  const answer =
-    (await completeChat(opts.openai, {
-      instructions,
-      input: prompt,
-      fileIds,
-      maxOutputTokens: 2048,
-    })) || "Nu am putut genera un răspuns.";
-  return { answer, chunkIds: [] };
+      const input = parts.join("\n");
+      ragLog(FLOW_CHAT, "ragAnswer · context", {
+        locale: opts.answerLocale,
+        medicineCim: opts.medicineCim ?? null,
+        input,
+      });
+
+      const answer =
+        (await completeChatWithTools(opts.openai, {
+          instructions,
+          input,
+          tools: MEDICINE_RAG_TOOLS,
+          runTool,
+          maxOutputTokens: 2048,
+          logFlow: FLOW_CHAT,
+        })) || "Nu am putut genera un răspuns.";
+      return { answer, chunkIds: [] };
+    },
+    {
+      locale: opts.answerLocale,
+      medicineCim: opts.medicineCim ?? null,
+      questionChars: opts.userQuestion.length,
+    },
+  );
 }
 
 const SUMMARY_JSON_SCHEMA = {
@@ -110,60 +140,63 @@ Do not ask questions, suggest follow-ups, or address the reader.`;
 export async function summarizeLeafletsBilingual(opts: {
   openai: OpenAI;
   supabase: SupabaseClient;
+  admin?: SupabaseClient;
   medicineCim: string;
 }): Promise<BilingualSummaries> {
-  const { fileIds, text } = await medicineContext(opts.supabase, opts.medicineCim);
-  if (fileIds.length === 0 && !text) {
-    return { ro: NO_DOCS_RO, hu: NO_DOCS_HU };
-  }
+  return ragLogTimed(
+    FLOW_SUMMARY,
+    "summarizeLeafletsBilingual",
+    async () => {
+      const { fileIds, text } = await medicineContext(
+        opts.supabase,
+        opts.medicineCim,
+        opts.admin,
+        FLOW_SUMMARY,
+      );
+      const usePdfAttachments = fileIds.length > 0;
+      ragLog(FLOW_SUMMARY, "documents loaded", {
+        medicineCim: opts.medicineCim,
+        fileIds,
+        pdfAttachments: usePdfAttachments,
+        excerptChars: text.length,
+        textInPrompt: !usePdfAttachments && Boolean(text),
+      });
+      if (!usePdfAttachments && !text) {
+        return { ro: NO_DOCS_RO, hu: NO_DOCS_HU };
+      }
 
-  const parsed = await completeChatJson<{ ro: string; hu: string }>(opts.openai, {
-    instructions: SUMMARY_INSTRUCTIONS,
-    input:
-      text ||
-      "Summarize the attached official medicine documents (RCP / prospect) in Romanian and Hungarian.",
-    fileIds,
-    maxOutputTokens: 4096,
-    schema: { name: "medicine_summaries", schema: SUMMARY_JSON_SCHEMA },
-  });
+      const parsed = await completeChatJson<{ ro: string; hu: string }>(
+        opts.openai,
+        {
+          instructions: SUMMARY_INSTRUCTIONS,
+          input: usePdfAttachments
+            ? "Summarize the attached official medicine documents (RCP / prospect) in Romanian and Hungarian."
+            : text,
+          fileIds: usePdfAttachments ? fileIds : undefined,
+          maxOutputTokens: 4096,
+          schema: { name: "medicine_summaries", schema: SUMMARY_JSON_SCHEMA },
+          logFlow: FLOW_SUMMARY,
+        },
+      );
 
-  return {
-    ro: parsed.ro?.trim() || "—",
-    hu: parsed.hu?.trim() || "—",
-  };
+      return {
+        ro: parsed.ro?.trim() || "—",
+        hu: parsed.hu?.trim() || "—",
+      };
+    },
+    { medicineCim: opts.medicineCim },
+  );
 }
 
-const INTERACTION_INSTRUCTIONS = `You produce a one-shot drug interaction report for a medicine basket — this is NOT a chat.
-Use ONLY the provided official leaflet documents and full excerpts for EVERY medicine listed below and in the attached PDFs.
+const INTERACTION_INSTRUCTIONS = medicineRagInstructions(
+  `You produce a one-shot drug interaction report for a medicine basket — this is NOT a chat.
 Analyze the complete basket together; consider cross-medicine interactions across the full set.
 Describe possible interaction concerns conservatively; use uncertainty language.
 Write in the user's language as indicated.
 Output a structured report in markdown (**section headings**, bullet points).
-Do NOT ask questions, invite follow-ups, greet the user, or add conversational closings (e.g. "let me know", "feel free to ask", "if you have questions").
-Do not give personal medical advice; remind the user to consult a doctor or pharmacist.`;
-
-function medicineInteractionSection(
-  cim: string,
-  docs: MedicineDocumentRow[],
-): string {
-  if (docs.length === 0) {
-    return `Medicine CIM ${cim}:\n(no indexed documents)`;
-  }
-  const blocks = docs.map((d) => {
-    const header = `[${d.doc_type}]`;
-    if (d.extracted_text?.trim()) {
-      const pdfNote = d.openai_file_id?.trim()
-        ? " (full PDF also attached)"
-        : "";
-      return `${header}${pdfNote}\n${d.extracted_text.trim()}`;
-    }
-    if (d.openai_file_id?.trim()) {
-      return `${header}\n(full document text is in the attached PDF for this product)`;
-    }
-    return `${header}\n(no indexed content)`;
-  });
-  return `Medicine CIM ${cim} (${docs.length} document(s)):\n\n${blocks.join("\n\n---\n\n")}`;
-}
+Do NOT ask questions, invite follow-ups, greet the user, or add conversational closings.
+Do not give personal medical advice; remind the user to consult a doctor or pharmacist.`,
+);
 
 export async function interactionAnalysis(opts: {
   openai: OpenAI;
@@ -171,30 +204,43 @@ export async function interactionAnalysis(opts: {
   medicineCims: string[];
   locale: "ro" | "hu";
 }): Promise<string> {
-  const sections: string[] = [];
-  const allFileIds: string[] = [];
+  return ragLogTimed(
+    FLOW_INTERACTION,
+    "interactionAnalysis",
+    async () => {
+      const runTool = createMedicineToolRunner(opts.supabase, FLOW_INTERACTION);
+      const focus = await formatFocusedMedicinesPrompt(
+        opts.supabase,
+        opts.medicineCims,
+      );
 
-  for (const cim of opts.medicineCims) {
-    const docs = await fetchMedicineDocuments(opts.supabase, cim);
-    allFileIds.push(...documentFileIds(docs));
-    sections.push(medicineInteractionSection(cim, docs));
-  }
+      const input = [
+        `Language: ${opts.locale}`,
+        "",
+        `Medicines in basket (${opts.medicineCims.length}): ${opts.medicineCims.join(", ")}`,
+        "",
+        focus,
+        "",
+        "Load official leaflet excerpts for each basket medicine via tools, then write the interaction report.",
+      ].join("\n");
 
-  const uniqueFileIds = [...new Set(allFileIds)];
-  const hasContent =
-    uniqueFileIds.length > 0 ||
-    sections.some((s) => !s.includes("(no indexed documents)"));
+      ragLog(FLOW_INTERACTION, "interactionAnalysis · context", {
+        locale: opts.locale,
+        medicineCims: opts.medicineCims,
+        input,
+      });
 
-  if (!hasContent) {
-    return opts.locale === "hu" ? NO_DOCS_HU : NO_DOCS_RO;
-  }
-
-  return (
-    (await completeChat(opts.openai, {
-      instructions: `${INTERACTION_INSTRUCTIONS}\n\nLanguage: ${opts.locale}.`,
-      input: `Medicines in basket (${opts.medicineCims.length}): ${opts.medicineCims.join(", ")}\n\n${sections.join("\n\n=====\n\n")}`,
-      fileIds: uniqueFileIds,
-      maxOutputTokens: 4096,
-    })) || "—"
+      return (
+        (await completeChatWithTools(opts.openai, {
+          instructions: INTERACTION_INSTRUCTIONS,
+          input,
+          tools: MEDICINE_RAG_TOOLS,
+          runTool,
+          maxOutputTokens: 4096,
+          logFlow: FLOW_INTERACTION,
+        })) || "—"
+      );
+    },
+    { locale: opts.locale, basketSize: opts.medicineCims.length },
   );
 }
