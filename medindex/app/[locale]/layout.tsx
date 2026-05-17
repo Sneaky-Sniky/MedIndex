@@ -48,13 +48,15 @@ export default async function LocaleLayout({ children, params }: Props) {
   return (
     <html
       lang={locale}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full overflow-hidden antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex flex-col bg-zinc-100 text-zinc-950">
+      <body className="flex h-dvh flex-col overflow-hidden bg-zinc-100 text-zinc-950">
         <NextIntlClientProvider messages={messages}>
           <Header locale={locale as "ro" | "hu"} />
-          <div className="flex-1">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain">
+            {children}
+          </div>
         </NextIntlClientProvider>
       </body>
     </html>

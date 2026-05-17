@@ -1,8 +1,12 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
+import { Link } from "@/i18n/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createForumPost } from "@/actions/community";
-import { ForumVoteForm } from "@/components/ForumVoteForm";
+import { ChevronLeftIcon } from "@/components/forum/ForumIcons";
+import { ForumPostList } from "@/components/forum/ForumPostList";
+import { ForumReplyForm } from "@/components/forum/ForumReplyForm";
+import { ForumLoginPrompt } from "@/components/forum/ForumLoginPrompt";
+import { formatForumDateShort } from "@/lib/forum/format";
 
 export const dynamic = "force-dynamic";
 
@@ -19,10 +23,20 @@ export default async function ForumThreadPage({ params }: Props) {
 
   const { data: thread, error } = await supabase
     .from("forum_threads")
-    .select("id, title")
+    .select("id, title, created_at, medicine_cim")
     .eq("id", threadId)
     .maybeSingle();
   if (error || !thread) notFound();
+
+  let medicineName: string | null = null;
+  if (thread.medicine_cim) {
+    const { data: med } = await supabase
+      .from("medicines")
+      .select("den_comerciala")
+      .eq("cim", thread.medicine_cim)
+      .maybeSingle();
+    medicineName = med?.den_comerciala ?? null;
+  }
 
   const { data: posts } = await supabase
     .from("forum_posts")
@@ -30,49 +44,99 @@ export default async function ForumThreadPage({ params }: Props) {
     .eq("thread_id", threadId)
     .order("created_at", { ascending: true });
 
+  const postList = posts ?? [];
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="text-2xl font-semibold text-zinc-950">{thread.title}</h1>
-      <ul className="mt-6 space-y-3">
-        {(posts ?? []).map((p) => (
-          <li
-            key={p.id}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm"
-          >
-            {p.is_ai_draft ? (
-              <span className="text-xs text-amber-700">[AI draft]</span>
-            ) : null}
-            <p className="whitespace-pre-wrap text-zinc-800">{p.body}</p>
-            {user ? (
-              <ForumVoteForm postId={p.id} threadId={threadId} locale={locale} />
-            ) : null}
-          </li>
-        ))}
-      </ul>
+      <Link
+        href="/forum"
+        className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 transition hover:text-emerald-800"
+      >
+        <ChevronLeftIcon />
+        {t("backToForum")}
+      </Link>
 
-      {user ? (
-        <form
-          action={createForumPost}
-          className="mt-8 space-y-2 rounded-lg border border-dashed border-zinc-300 p-4"
-        >
-          <input type="hidden" name="thread_id" value={threadId} />
-          <input type="hidden" name="locale" value={locale} />
-          <textarea
-            name="body"
-            rows={4}
-            required
-            className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400"
+      <header className="mt-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{thread.title}</h1>
+        <ThreadMeta
+          createdAt={thread.created_at}
+          locale={locale}
+          medicineName={medicineName}
+          medicineCim={thread.medicine_cim}
+          replyCount={postList.length}
+          replyLabel={postList.length === 1 ? t("reply") : t("replies")}
+        />
+      </header>
+
+      <section className="mt-8">
+        <ForumPostList
+          posts={postList}
+          locale={locale}
+          threadId={threadId}
+          user={user}
+          labels={{
+            aiDraft: t("aiDraft"),
+            noPosts: t("noPosts"),
+            upvote: t("upvote"),
+            downvote: t("downvote"),
+          }}
+        />
+      </section>
+
+      <section className="mt-8">
+        {user ? (
+          <ForumReplyForm
+            threadId={threadId}
+            locale={locale}
+            labels={{
+              replyTitle: t("replyTitle"),
+              replyPlaceholder: t("replyPlaceholder"),
+              post: t("post"),
+            }}
           />
-          <button
-            type="submit"
-            className="rounded bg-zinc-900 px-3 py-1.5 text-sm text-white"
-          >
-            Post
-          </button>
-        </form>
-      ) : (
-        <p className="mt-6 text-sm text-zinc-600">{t("loginToPost")}</p>
-      )}
+        ) : (
+          <ForumLoginPrompt message={t("loginToPost")} signInLabel={t("signIn")} />
+        )}
+      </section>
     </main>
+  );
+}
+
+function ThreadMeta({
+  createdAt,
+  locale,
+  medicineName,
+  medicineCim,
+  replyCount,
+  replyLabel,
+}: {
+  createdAt: string;
+  locale: string;
+  medicineName: string | null;
+  medicineCim: string | null;
+  replyCount: number;
+  replyLabel: string;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-zinc-600">
+      <time dateTime={createdAt}>{formatForumDateShort(createdAt, locale)}</time>
+      <span className="text-zinc-300">·</span>
+      <span>
+        {replyCount} {replyLabel}
+      </span>
+      {medicineName ? (
+        <>
+          <span className="text-zinc-300">·</span>
+          <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-100">
+            {medicineName}
+          </span>
+        </>
+      ) : medicineCim ? (
+        <>
+          <span className="text-zinc-300">·</span>
+          <span className="font-mono text-xs text-zinc-500">{medicineCim}</span>
+        </>
+      ) : null}
+    </div>
   );
 }
