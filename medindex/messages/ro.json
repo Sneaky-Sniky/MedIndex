@@ -32,9 +32,23 @@
   },
   "search": {
     "title": "Căutare medicamente",
+    "subtitle": "Caută în nomenclatorul ANMDM după denumire, DCI, cod ATC sau CIM. Filtrează după formă, ATC sau regim de eliberare.",
     "placeholder": "Denumire, DCI, cod ATC sau CIM…",
     "submit": "Caută",
-    "empty": "Introduceți un termen de căutare.",
+    "filterAtc": "Cod ATC (prefix)",
+    "filterForma": "Formă farmaceutică",
+    "filterRx": "Eliberare",
+    "filterSort": "Sortare",
+    "rxAll": "Toate",
+    "rxOtc": "Fără prescripție",
+    "rxPrescription": "Cu prescripție",
+    "sortRelevance": "Relevanță",
+    "sortName": "Denumire A–Z",
+    "sortAtc": "Cod ATC",
+    "clearFilters": "Resetează filtrele",
+    "browseHeading": "Medicamente aleatoare",
+    "resultsHeading": "Rezultate",
+    "resultCount": "{count, plural, =0 {Niciun rezultat} one {# rezultat} few {# rezultate} other {# de rezultate}}",
     "noResults": "Niciun rezultat.",
     "error": "Eroare la căutare."
   },
@@ -47,6 +61,8 @@
     "rcp": "RCP (PDF)",
     "prospect": "Prospect (PDF)",
     "substitutes": "Alternative cu același cod ATC",
+    "substituteCount": "{count, plural, one {# alternativă} few {# alternative} other {# alternative}}",
+    "reviewCount": "{count, plural, one {# recenzie} few {# recenzii} other {# recenzii}}",
     "noSubstitutes": "Nu s-au găsit alternative în baza de date.",
     "notFound": "Medicamentul nu a fost găsit.",
     "basketAdd": "Adaugă la verificare interacțiuni",
@@ -59,6 +75,7 @@
     "subscribeTeaserAuthed": "Alerte și modificări la acest medicament.",
     "summarize": "Rezumat prospect (IA)",
     "reviews": "Recenzii",
+    "noReviews": "Nicio recenzie încă.",
     "reportError": "Raportează o eroare"
   },
   "ai": {
@@ -118,16 +135,23 @@
     "title": "Panou administrare",
     "sync": "Rulează sincronizare ANM",
     "reports": "Raportări",
+    "reportCount": "{count, plural, one {# raport} few {# rapoarte} other {# rapoarte}}",
     "denied": "Acces interzis."
   },
   "notifications": {
     "title": "Notificări",
     "followedMedicines": "Medicamente urmărite",
+    "followedCount": "{count, plural, one {# medicament} few {# medicamente} other {# medicamente}}",
     "noFollowedMedicines": "Nu urmăriți niciun medicament.",
     "unfollow": "Oprește urmărirea",
     "emailRecalls": "E-mail la retrageri / alertă",
     "pushRecalls": "Notificări push",
     "save": "Salvează"
+  },
+  "pagination": {
+    "previous": "Înapoi",
+    "next": "Înainte",
+    "pageOf": "Pagina {page} din {total}"
   },
   "errors": {
     "generic": "A apărut o eroare."

@@ -8,18 +8,25 @@ import { ReviewSection } from "@/components/ReviewSection";
 import { ReportErrorForm } from "@/components/ReportErrorForm";
 import { BasketButton } from "@/components/BasketButton";
 import { MedicineSubscriptionSection } from "@/components/MedicineSubscriptionSection";
+import { PaginatedTable } from "@/components/PaginatedTable";
+import { SUBSTITUTE_PAGE_SIZE } from "@/lib/search/constants";
+import { medicinePath, parseMedicineListParams } from "@/lib/medicine/query";
+import { clampPage, pageRange, totalPages } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<{ subPage?: string; reviewPage?: string }>;
 };
 
-export default async function MedicinePage({ params }: Props) {
+export default async function MedicinePage({ params, searchParams }: Props) {
   const { locale, slug } = await params;
+  const { subPage, reviewPage } = parseMedicineListParams(await searchParams);
   if (locale !== "ro" && locale !== "hu") notFound();
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "medicine" });
+  const tPag = await getTranslations({ locale, namespace: "pagination" });
   const supabase = await createClient();
 
   const { data: med, error } = await supabase
@@ -30,12 +37,34 @@ export default async function MedicinePage({ params }: Props) {
 
   if (error || !med) notFound();
 
-  const { data: subs } = await supabase
-    .from("medicines")
-    .select("cim, den_comerciala, slug")
-    .eq("cod_atc", med.cod_atc as string)
-    .neq("cim", med.cim)
-    .limit(15);
+  const codAtc = med.cod_atc as string | null;
+  let subs: { cim: string; den_comerciala: string; slug: string }[] = [];
+  let subTotal = 0;
+
+  if (codAtc) {
+    const { count } = await supabase
+      .from("medicines")
+      .select("cim", { count: "exact", head: true })
+      .eq("cod_atc", codAtc)
+      .neq("cim", med.cim);
+    subTotal = count ?? 0;
+
+    const subPages = totalPages(subTotal, SUBSTITUTE_PAGE_SIZE);
+    const safeSubPage = clampPage(subPage, subPages);
+    const { from, to } = pageRange(safeSubPage, SUBSTITUTE_PAGE_SIZE);
+
+    const { data } = await supabase
+      .from("medicines")
+      .select("cim, den_comerciala, slug")
+      .eq("cod_atc", codAtc)
+      .neq("cim", med.cim)
+      .order("den_comerciala", { ascending: true })
+      .range(from, to);
+    subs = data ?? [];
+  }
+
+  const subPages = totalPages(subTotal, SUBSTITUTE_PAGE_SIZE);
+  const safeSubPage = clampPage(subPage, subPages);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -96,27 +125,48 @@ export default async function MedicinePage({ params }: Props) {
 
         <MedicineAiPanel locale={locale} medicineCim={med.cim} />
 
-        <section>
-          <h2 className="text-lg font-medium text-zinc-950">{t("substitutes")}</h2>
-          {!subs?.length ? (
+        {codAtc ? (
+          <PaginatedTable
+            items={subs}
+            itemKey={(s) => s.cim}
+            title={t("substitutes")}
+            countLabel={subTotal > 0 ? t("substituteCount", { count: subTotal }) : undefined}
+            titleClassName="text-lg font-medium text-zinc-950"
+            listClassName="mt-2"
+            pagination={{
+              page: safeSubPage,
+              totalPages: subPages,
+              hrefForPage: (p) => medicinePath(slug, { subPage: p, reviewPage }),
+              labels: {
+                previous: tPag("previous"),
+                next: tPag("next"),
+                pageLabel: tPag("pageOf", { page: safeSubPage, total: subPages }),
+              },
+            }}
+            empty={<p className="mt-2 text-sm text-zinc-600">{t("noSubstitutes")}</p>}
+            renderRow={(s) => (
+              <Link
+                href={`/medicine/${s.slug}`}
+                className="block px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
+              >
+                {s.den_comerciala}
+              </Link>
+            )}
+          />
+        ) : (
+          <section>
+            <h2 className="text-lg font-medium text-zinc-950">{t("substitutes")}</h2>
             <p className="mt-2 text-sm text-zinc-600">{t("noSubstitutes")}</p>
-          ) : (
-            <ul className="mt-2 divide-y rounded-lg border border-zinc-200 bg-white">
-              {subs.map((s) => (
-                <li key={s.cim}>
-                  <Link
-                    href={`/medicine/${s.slug}`}
-                    className="block px-3 py-2 text-sm text-zinc-800 hover:bg-zinc-50"
-                  >
-                    {s.den_comerciala}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+          </section>
+        )}
 
-        <ReviewSection locale={locale} medicineCim={med.cim} slug={slug} />
+        <ReviewSection
+          locale={locale}
+          medicineCim={med.cim}
+          slug={slug}
+          reviewPage={reviewPage}
+          subPage={subPage}
+        />
         <ReportErrorForm locale={locale} medicineCim={med.cim} slug={slug} />
       </article>
     </main>

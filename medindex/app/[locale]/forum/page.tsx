@@ -5,9 +5,9 @@ import { ForumNewThreadForm } from "@/components/forum/ForumNewThreadForm";
 import { ForumThreadList, type MedicineMeta } from "@/components/forum/ForumThreadList";
 import { ForumLoginPrompt } from "@/components/forum/ForumLoginPrompt";
 import { ForumToolbar } from "@/components/forum/ForumToolbar";
-import { ForumPagination } from "@/components/forum/ForumPagination";
 import { FORUM_PAGE_SIZE } from "@/lib/forum/constants";
-import { parseForumSearchParams } from "@/lib/forum/query";
+import { forumListPath, parseForumSearchParams } from "@/lib/forum/query";
+import { clampPage, totalPages as calcTotalPages } from "@/lib/pagination";
 import { escapeIlikePattern } from "@/lib/forum/escape";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +25,7 @@ export default async function ForumPage({ params, searchParams }: Props) {
 
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "forum" });
+  const tPag = await getTranslations({ locale, namespace: "pagination" });
   const supabase = await createClient();
   const {
     data: { user },
@@ -52,8 +53,8 @@ export default async function ForumPage({ params, searchParams }: Props) {
 
   const { count } = await countQuery;
   const total = count ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / FORUM_PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
+  const pages = calcTotalPages(total, FORUM_PAGE_SIZE);
+  const safePage = clampPage(page, pages);
   const from = (safePage - 1) * FORUM_PAGE_SIZE;
   const to = from + FORUM_PAGE_SIZE - 1;
 
@@ -141,6 +142,16 @@ export default async function ForumPage({ params, searchParams }: Props) {
           medicinesByCim={medicinesByCim}
           locale={locale}
           hasActiveFilters={hasActiveFilters}
+          pagination={{
+            page: safePage,
+            totalPages: pages,
+            hrefForPage: (p) => forumListPath({ q, filter, page: p }),
+            labels: {
+              previous: tPag("previous"),
+              next: tPag("next"),
+              pageLabel: tPag("pageOf", { page: safePage, total: pages }),
+            },
+          }}
           labels={{
             noThreads: t("noThreads"),
             noResults: t("noResults"),
@@ -148,17 +159,6 @@ export default async function ForumPage({ params, searchParams }: Props) {
             resultsHint: t("resultsHint"),
             replies: t("replies"),
             reply: t("reply"),
-          }}
-        />
-        <ForumPagination
-          page={safePage}
-          totalPages={totalPages}
-          q={q}
-          filter={filter}
-          labels={{
-            previous: t("previous"),
-            next: t("next"),
-            pageLabel: t("pageOf", { page: safePage, total: totalPages }),
           }}
         />
       </section>

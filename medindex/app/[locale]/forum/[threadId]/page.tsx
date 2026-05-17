@@ -7,15 +7,22 @@ import { ForumPostList } from "@/components/forum/ForumPostList";
 import { ForumReplyForm } from "@/components/forum/ForumReplyForm";
 import { ForumLoginPrompt } from "@/components/forum/ForumLoginPrompt";
 import { formatForumDateShort } from "@/lib/forum/format";
+import { FORUM_POSTS_PAGE_SIZE } from "@/lib/search/constants";
+import { clampPage, pageRange, parsePageParam, totalPages } from "@/lib/pagination";
 
 export const dynamic = "force-dynamic";
 
-type Props = { params: Promise<{ locale: string; threadId: string }> };
+type Props = {
+  params: Promise<{ locale: string; threadId: string }>;
+  searchParams: Promise<{ page?: string }>;
+};
 
-export default async function ForumThreadPage({ params }: Props) {
+export default async function ForumThreadPage({ params, searchParams }: Props) {
   const { locale, threadId } = await params;
+  const page = parsePageParam((await searchParams).page);
   setRequestLocale(locale);
   const t = await getTranslations({ locale, namespace: "forum" });
+  const tPag = await getTranslations({ locale, namespace: "pagination" });
   const supabase = await createClient();
   const {
     data: { user },
@@ -38,11 +45,22 @@ export default async function ForumThreadPage({ params }: Props) {
     medicineName = med?.den_comerciala ?? null;
   }
 
+  const { count } = await supabase
+    .from("forum_posts")
+    .select("id", { count: "exact", head: true })
+    .eq("thread_id", threadId);
+
+  const postTotal = count ?? 0;
+  const pages = totalPages(postTotal, FORUM_POSTS_PAGE_SIZE);
+  const safePage = clampPage(page, pages);
+  const { from, to } = pageRange(safePage, FORUM_POSTS_PAGE_SIZE);
+
   const { data: posts } = await supabase
     .from("forum_posts")
     .select("id, body, created_at, is_ai_draft")
     .eq("thread_id", threadId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: true })
+    .range(from, to);
 
   const postList = posts ?? [];
 
@@ -63,8 +81,8 @@ export default async function ForumThreadPage({ params }: Props) {
           locale={locale}
           medicineName={medicineName}
           medicineCim={thread.medicine_cim}
-          replyCount={postList.length}
-          replyLabel={postList.length === 1 ? t("reply") : t("replies")}
+          replyCount={postTotal}
+          replyLabel={postTotal === 1 ? t("reply") : t("replies")}
         />
       </header>
 
@@ -74,6 +92,16 @@ export default async function ForumThreadPage({ params }: Props) {
           locale={locale}
           threadId={threadId}
           user={user}
+          pagination={{
+            page: safePage,
+            totalPages: pages,
+            hrefForPage: (p) => (p > 1 ? `/forum/${threadId}?page=${p}` : `/forum/${threadId}`),
+            labels: {
+              previous: tPag("previous"),
+              next: tPag("next"),
+              pageLabel: tPag("pageOf", { page: safePage, total: pages }),
+            },
+          }}
           labels={{
             aiDraft: t("aiDraft"),
             noPosts: t("noPosts"),

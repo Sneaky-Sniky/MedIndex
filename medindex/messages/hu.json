@@ -32,9 +32,23 @@
   },
   "search": {
     "title": "Gyógyszerkeresés",
+    "subtitle": "Keresés az ANMDM jegyzékben kereskedelmi név, INN, ATC vagy CIM kód alapján. Szűrés forma, ATC vagy kiadási mód szerint.",
     "placeholder": "Kereskedelmi név, INN, ATC vagy CIM kód…",
     "submit": "Keresés",
-    "empty": "Adjon meg keresőkifejezést.",
+    "filterAtc": "ATC kód (előtag)",
+    "filterForma": "Gyógyszerforma",
+    "filterRx": "Kiadási mód",
+    "filterSort": "Rendezés",
+    "rxAll": "Összes",
+    "rxOtc": "Vény nélkül",
+    "rxPrescription": "Vényköteles",
+    "sortRelevance": "Relevancia",
+    "sortName": "Név A–Z",
+    "sortAtc": "ATC kód",
+    "clearFilters": "Szűrők törlése",
+    "browseHeading": "Véletlenszerű gyógyszerek",
+    "resultsHeading": "Találatok",
+    "resultCount": "{count, plural, =0 {Nincs találat} one {# találat} other {# találat}}",
     "noResults": "Nincs találat.",
     "error": "Keresési hiba."
   },
@@ -47,6 +61,8 @@
     "rcp": "RCP (PDF)",
     "prospect": "Betegtájékoztató (PDF)",
     "substitutes": "Azonos ATC kódú alternatívák",
+    "substituteCount": "{count, plural, one {# alternatíva} other {# alternatíva}}",
+    "reviewCount": "{count, plural, one {# értékelés} other {# értékelés}}",
     "noSubstitutes": "Nincsenek alternatívák az adatbázisban.",
     "notFound": "A gyógyszer nem található.",
     "basketAdd": "Hozzáadás kölcsönhatás-ellenőrzéshez",
@@ -59,6 +75,7 @@
     "subscribeTeaserAuthed": "Értesítések és változások ehhez a gyógyszerhez.",
     "summarize": "Összefoglaló (MI)",
     "reviews": "Értékelések",
+    "noReviews": "Még nincs értékelés.",
     "reportError": "Hiba bejelentése"
   },
   "ai": {
@@ -118,16 +135,23 @@
     "title": "Adminisztrációs panel",
     "sync": "ANM szinkron futtatása",
     "reports": "Bejelentések",
+    "reportCount": "{count, plural, one {# bejelentés} other {# bejelentés}}",
     "denied": "Hozzáférés megtagadva."
   },
   "notifications": {
     "title": "Értesítések",
     "followedMedicines": "Követett gyógyszerek",
+    "followedCount": "{count, plural, one {# gyógyszer} other {# gyógyszer}}",
     "noFollowedMedicines": "Nem követ egyetlen gyógyszert sem.",
     "unfollow": "Követés leállítása",
     "emailRecalls": "E-mail visszahívásokról / figyelmeztetésekről",
     "pushRecalls": "Push értesítések",
     "save": "Mentés"
+  },
+  "pagination": {
+    "previous": "Előző",
+    "next": "Következő",
+    "pageOf": "{page}. / {total} oldal"
   },
   "errors": {
     "generic": "Hiba történt."
