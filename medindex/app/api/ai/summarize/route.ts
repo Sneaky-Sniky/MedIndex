@@ -6,6 +6,7 @@ import { aiRouteError, createOpenAI } from "@/lib/ai/openai";
 import { summarizeLeafletsBilingual } from "@/lib/ai/rag";
 import {
   getCachedMedicineSummaries,
+  pickMedicineSummary,
   saveMedicineSummaries,
 } from "@/lib/ai/summary-cache";
 
@@ -36,8 +37,9 @@ export async function POST(request: Request) {
   const { medicineCim, locale } = parsed.data;
   try {
     const cached = await getCachedMedicineSummaries(supabase, medicineCim);
-    if (cached[locale]) {
-      return NextResponse.json({ summary: cached[locale], cached: true });
+    const cachedSummary = pickMedicineSummary(locale, cached);
+    if (cachedSummary) {
+      return NextResponse.json({ summary: cachedSummary, cached: true });
     }
 
     let admin;
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({
-      summary: summaries[locale],
+      summary: pickMedicineSummary(locale, summaries) ?? summaries[locale],
       cached: false,
     });
   } catch (e) {

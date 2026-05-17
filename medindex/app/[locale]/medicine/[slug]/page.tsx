@@ -10,6 +10,7 @@ import { BasketButton } from "@/components/BasketButton";
 import { MedicineSubscriptionSection } from "@/components/MedicineSubscriptionSection";
 import { PaginatedTable } from "@/components/PaginatedTable";
 import { SUBSTITUTE_PAGE_SIZE } from "@/lib/search/constants";
+import { pickMedicineSummary } from "@/lib/ai/summary-cache";
 import { medicinePath, parseMedicineListParams } from "@/lib/medicine/query";
 import { clampPage, pageRange, totalPages } from "@/lib/pagination";
 
@@ -140,11 +141,10 @@ export default async function MedicinePage({ params, searchParams }: Props) {
         <MedicineAiPanel
           locale={locale}
           medicineCim={med.cim}
-          initialSummary={
-            locale === "hu"
-              ? (med.ai_summary_hu as string | null)
-              : (med.ai_summary_ro as string | null)
-          }
+          initialSummary={pickMedicineSummary(locale, {
+            ro: med.ai_summary_ro as string | null,
+            hu: med.ai_summary_hu as string | null,
+          })}
           initialQa={initialQa}
         />
 

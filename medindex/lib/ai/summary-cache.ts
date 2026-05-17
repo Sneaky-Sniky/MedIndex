@@ -1,8 +1,20 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  pickBilingualContent,
+  type AppLocale,
+  type BilingualContent,
+} from "@/lib/i18n/bilingual";
 
-export type SummaryLocale = "ro" | "hu";
+export type SummaryLocale = AppLocale;
 
 export type BilingualSummaries = Record<SummaryLocale, string>;
+
+export function pickMedicineSummary(
+  locale: SummaryLocale,
+  summaries: BilingualContent,
+): string | null {
+  return pickBilingualContent(locale, summaries);
+}
 
 export async function getCachedMedicineSummaries(
   supabase: SupabaseClient,

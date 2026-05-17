@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AiMarkdown } from "@/components/AiMarkdown";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
@@ -29,6 +29,14 @@ export function MedicineAiPanel({
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [qaEntries, setQaEntries] = useState(initialQa);
+
+  useEffect(() => {
+    setSummary(initialSummary);
+  }, [initialSummary, locale, medicineCim]);
+
+  useEffect(() => {
+    setQaEntries(initialQa);
+  }, [initialQa, locale, medicineCim]);
 
   async function runSummary() {
     setSumLoading(true);

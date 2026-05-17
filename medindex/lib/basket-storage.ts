@@ -1,10 +1,21 @@
+import { pickBilingualContent, type AppLocale } from "@/lib/i18n/bilingual";
+
 export const BASKET_STORAGE_KEY = "medindex_basket_v1";
 
-export type BasketInteractions = {
+type BasketInteractionsV2 = {
   cimsKey: string;
-  locale: "ro" | "hu";
+  ro?: string;
+  hu?: string;
+};
+
+/** @deprecated legacy single-locale payload */
+type BasketInteractionsV1 = {
+  cimsKey: string;
+  locale: AppLocale;
   analysis: string;
 };
+
+type BasketInteractions = BasketInteractionsV2 | BasketInteractionsV1;
 
 type BasketStored = {
   cims: string[];
@@ -42,31 +53,48 @@ function persist(data: BasketStored) {
   window.dispatchEvent(new Event("medindex-basket-changed"));
 }
 
+function interactionsContent(
+  interactions: BasketInteractions,
+): { ro: string | null; hu: string | null } {
+  if ("analysis" in interactions) {
+    return {
+      ro: interactions.locale === "ro" ? interactions.analysis : null,
+      hu: interactions.locale === "hu" ? interactions.analysis : null,
+    };
+  }
+  return {
+    ro: interactions.ro?.trim() || null,
+    hu: interactions.hu?.trim() || null,
+  };
+}
+
 export function readBasket(): string[] {
   return parseStored().cims;
 }
 
-export function readBasketInteractions(
-  locale: "ro" | "hu",
-): string | null {
+export function readBasketInteractions(locale: AppLocale): string | null {
   const { cims, interactions } = parseStored();
   if (!interactions) return null;
-  if (interactions.locale !== locale) return null;
   if (interactions.cimsKey !== basketCimsKey(cims)) return null;
-  return interactions.analysis;
+  return pickBilingualContent(locale, interactionsContent(interactions));
 }
 
-export function saveBasketInteractions(
-  locale: "ro" | "hu",
-  analysis: string,
-) {
-  const { cims } = parseStored();
+export function saveBasketInteractions(locale: AppLocale, analysis: string) {
+  const stored = parseStored();
+  const { cims } = stored;
+  const cimsKey = basketCimsKey(cims);
+  const prev = stored.interactions;
+  const content =
+    prev && prev.cimsKey === cimsKey
+      ? interactionsContent(prev)
+      : { ro: null, hu: null };
+  content[locale] = analysis;
   persist({
     cims,
     interactions: {
-      cimsKey: basketCimsKey(cims),
-      locale,
-      analysis,
+      cimsKey,
+      ...(content.ro ? { ro: content.ro } : {}),
+      ...(content.hu ? { hu: content.hu } : {}),
     },
   });
 }
