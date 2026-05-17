@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import { AiMarkdown } from "@/components/AiMarkdown";
+import { Spinner } from "@/components/Spinner";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import {
   getBasketSnapshot,
@@ -91,9 +92,16 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
               type="button"
               disabled={loading}
               onClick={() => void analyze()}
-              className="rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+              className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
             >
-              {loading ? "…" : t("analyze")}
+              {loading ? (
+                <>
+                  <Spinner />
+                  <span className="sr-only">{t("analyze")}</span>
+                </>
+              ) : (
+                t("analyze")
+              )}
             </button>
           )}
         </>

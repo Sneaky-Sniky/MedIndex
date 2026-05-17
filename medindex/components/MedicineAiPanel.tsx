@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AiMarkdown } from "@/components/AiMarkdown";
+import { Spinner } from "@/components/Spinner";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
 import {
   MedicineQaArchive,
@@ -105,9 +106,16 @@ export function MedicineAiPanel({
             type="button"
             disabled={sumLoading}
             onClick={() => void runSummary()}
-            className="mt-2 rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="mt-2 inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
           >
-            {sumLoading ? "…" : tMed("summarize")}
+            {sumLoading ? (
+              <>
+                <Spinner />
+                <span className="sr-only">{tMed("summarize")}</span>
+              </>
+            ) : (
+              tMed("summarize")
+            )}
           </button>
         ) : null}
         {summary !== null ? (
@@ -146,9 +154,16 @@ export function MedicineAiPanel({
             type="button"
             disabled={chatLoading}
             onClick={() => void runChat()}
-            className="rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-3 py-2 text-sm text-white disabled:opacity-50"
           >
-            {chatLoading ? "…" : tAi("send")}
+            {chatLoading ? (
+              <>
+                <Spinner />
+                <span className="sr-only">{tAi("send")}</span>
+              </>
+            ) : (
+              tAi("send")
+            )}
           </button>
         </div>
         {answer !== null ? (
