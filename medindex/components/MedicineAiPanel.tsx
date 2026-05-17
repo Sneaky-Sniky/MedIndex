@@ -4,15 +4,21 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { AiMarkdown } from "@/components/AiMarkdown";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
+import {
+  MedicineQaArchive,
+  type MedicineQaEntry,
+} from "@/components/MedicineQaArchive";
 
 export function MedicineAiPanel({
   locale,
   medicineCim,
   initialSummary = null,
+  initialQa = [],
 }: {
   locale: "ro" | "hu";
   medicineCim: string;
   initialSummary?: string | null;
+  initialQa?: MedicineQaEntry[];
 }) {
   const tAi = useTranslations("ai");
   const tMed = useTranslations("medicine");
@@ -22,6 +28,7 @@ export function MedicineAiPanel({
   const [answer, setAnswer] = useState<string | null>(null);
   const [chatLoading, setChatLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [qaEntries, setQaEntries] = useState(initialQa);
 
   async function runSummary() {
     setSumLoading(true);
@@ -57,9 +64,18 @@ export function MedicineAiPanel({
           locale,
         }),
       });
-      const data = (await res.json()) as { answer?: string; error?: string };
+      const data = (await res.json()) as {
+        answer?: string;
+        error?: string;
+        qa?: MedicineQaEntry | null;
+      };
       if (!res.ok) throw new Error(data.error ?? tAi("requestFailed"));
       setAnswer(data.answer ?? "");
+      if (data.qa) {
+        setQaEntries((prev) =>
+          prev.some((e) => e.id === data.qa!.id) ? prev : [data.qa!, ...prev],
+        );
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : tAi("requestFailed"));
     } finally {
@@ -96,6 +112,9 @@ export function MedicineAiPanel({
 
       <section>
         <h2 className="text-lg font-medium text-zinc-950">{tAi("chatTitle")}</h2>
+        <div className="mt-3">
+          <MedicineQaArchive entries={qaEntries} />
+        </div>
         <div className="mt-2 flex flex-col gap-2 sm:flex-row">
           <input
             value={question}

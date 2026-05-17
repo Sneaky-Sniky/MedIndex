@@ -66,6 +66,20 @@ export default async function MedicinePage({ params, searchParams }: Props) {
   const subPages = totalPages(subTotal, SUBSTITUTE_PAGE_SIZE);
   const safeSubPage = clampPage(subPage, subPages);
 
+  const { data: qaRows } = await supabase
+    .from("medicine_qa")
+    .select("id, question, answer, locale, created_at")
+    .eq("medicine_cim", med.cim)
+    .order("created_at", { ascending: false });
+
+  const initialQa = (qaRows ?? []).map((row) => ({
+    id: row.id as string,
+    question: row.question as string,
+    answer: row.answer as string,
+    locale: row.locale as "ro" | "hu",
+    created_at: row.created_at as string,
+  }));
+
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
       <article className="space-y-6">
@@ -131,6 +145,7 @@ export default async function MedicinePage({ params, searchParams }: Props) {
               ? (med.ai_summary_hu as string | null)
               : (med.ai_summary_ro as string | null)
           }
+          initialQa={initialQa}
         />
 
         {codAtc ? (

@@ -37,7 +37,30 @@ export async function POST(request: Request) {
       medicineCim: parsed.data.medicineCim,
       answerLocale: parsed.data.locale,
     });
-    return NextResponse.json({ answer, chunkIds });
+
+    let qa: {
+      id: string;
+      question: string;
+      answer: string;
+      locale: string;
+      created_at: string;
+    } | null = null;
+
+    if (parsed.data.medicineCim) {
+      const { data: row, error: insertError } = await supabase
+        .from("medicine_qa")
+        .insert({
+          medicine_cim: parsed.data.medicineCim,
+          question: parsed.data.question,
+          answer,
+          locale: parsed.data.locale,
+        })
+        .select("id, question, answer, locale, created_at")
+        .single();
+      if (!insertError && row) qa = row;
+    }
+
+    return NextResponse.json({ answer, chunkIds, qa });
   } catch (e) {
     const { status, error } = aiRouteError(e);
     return NextResponse.json({ error }, { status });

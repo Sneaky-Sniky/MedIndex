@@ -74,6 +74,7 @@
     "subscribeTeaser": "pentru alerte și modificări la acest medicament.",
     "subscribeTeaserAuthed": "Alerte și modificări la acest medicament.",
     "summarize": "Rezumat prospect (IA)",
+    "previousQuestions": "{count, plural, one {# întrebare anterioară} few {# întrebări anterioare} other {# întrebări anterioare}}",
     "reviews": "Recenzii",
     "noReviews": "Nicio recenzie încă.",
     "reportError": "Raportează o eroare"

@@ -74,6 +74,7 @@
     "subscribeTeaser": "értesítésekhez és változásokhoz ehhez a gyógyszerhez.",
     "subscribeTeaserAuthed": "Értesítések és változások ehhez a gyógyszerhez.",
     "summarize": "Összefoglaló (MI)",
+    "previousQuestions": "{count, plural, one {# korábbi kérdés} other {# korábbi kérdés}}",
     "reviews": "Értékelések",
     "noReviews": "Még nincs értékelés.",
     "reportError": "Hiba bejelentése"
