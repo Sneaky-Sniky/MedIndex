@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
+import { Link } from "@/i18n/navigation";
 import { AiMarkdown } from "@/components/AiMarkdown";
 import { Spinner } from "@/components/Spinner";
 import { MedicalDisclaimer } from "@/components/MedicalDisclaimer";
@@ -13,6 +14,13 @@ import {
   saveBasketInteractions,
   subscribeBasket,
 } from "@/lib/basket-storage";
+import { createClient } from "@/lib/supabase/client";
+
+type BasketMedicine = {
+  cim: string;
+  den_comerciala: string;
+  slug: string;
+};
 
 export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
   const t = useTranslations("ai");
@@ -34,6 +42,31 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
   const [out, setOut] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [medicines, setMedicines] = useState<BasketMedicine[]>([]);
+
+  const medicinesByCim = useMemo(
+    () => new Map(medicines.map((m) => [m.cim, m])),
+    [medicines],
+  );
+
+  useEffect(() => {
+    if (cims.length === 0) {
+      setMedicines([]);
+      return;
+    }
+    let cancelled = false;
+    const supabase = createClient();
+    void supabase
+      .from("medicines")
+      .select("cim, den_comerciala, slug")
+      .in("cim", cims)
+      .then(({ data }) => {
+        if (!cancelled) setMedicines((data ?? []) as BasketMedicine[]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cims]);
 
   useEffect(() => {
     const cached = readBasketInteractions(locale);
@@ -80,10 +113,24 @@ export function InteractionsClient({ locale }: { locale: "ro" | "hu" }) {
         <p className="text-sm text-amber-800">{t("emptyBasket")}</p>
       ) : (
         <>
-          <ul className="rounded border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900">
-            {cims.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
+          <ul className="rounded border border-zinc-200 bg-white text-sm">
+            {cims.map((cim) => {
+              const med = medicinesByCim.get(cim);
+              return (
+                <li key={cim} className="px-3 py-2">
+                  {med ? (
+                    <Link
+                      href={`/medicine/${med.slug}`}
+                      className="text-zinc-900 underline decoration-zinc-300 hover:decoration-zinc-600"
+                    >
+                      {med.den_comerciala}
+                    </Link>
+                  ) : (
+                    <span className="text-zinc-500">{cim}</span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           {cims.length < 2 ? (
             <p className="text-sm text-amber-800">{t("interactionsNeedTwo")}</p>
